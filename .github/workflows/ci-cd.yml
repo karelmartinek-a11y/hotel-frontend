@@ -1,0 +1,39 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Basic syntax check
+        run: python -m compileall .
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          password: ${{ secrets.DEPLOY_PASS }}
+          script: |
+            set -e
+            if [ ! -d /srv/hcas/_repos/hotel-frontend/.git ]; then
+              git clone https://github.com/karelmartinek-a11y/hotel-frontend.git /srv/hcas/_repos/hotel-frontend
+            fi
+            cd /srv/hcas/_repos/hotel-frontend
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
+            rsync -a --delete --exclude='.git' /srv/hcas/_repos/hotel-frontend/ /opt/hotelapp/backend/app/web/
+            cd /opt/hotelapp/deploy/sandbox && ./run-tests.sh
+            cd /opt/hotelapp/deploy && docker compose build backend
+            cd /opt/hotelapp/deploy && docker compose up -d backend
+            printf '%s HOTEL frontend: auto-deploy main\n' "$(date '+%F %T')" >> /var/log/hotelapp/deploy.log
