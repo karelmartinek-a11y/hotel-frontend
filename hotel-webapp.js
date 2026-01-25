@@ -120,6 +120,77 @@
     safeSetItem(STORAGE_KEY, JSON.stringify(next));
   };
 
+  const maybeRenderAndroidBanner = () => {
+    const isAndroid = /android/i.test(navigator.userAgent || '');
+    if (!isAndroid) return;
+    const key = 'hotel_dagmar_banner';
+    try {
+      if (sessionStorage.getItem(key) === '1') return;
+    } catch (e) {
+      // ignore
+    }
+    const banner = document.createElement('div');
+    banner.style.background = 'linear-gradient(90deg, #0ea5e9, #38bdf8)';
+    banner.style.color = 'white';
+    banner.style.padding = '12px 14px';
+    banner.style.borderRadius = '12px';
+    banner.style.marginBottom = '12px';
+    banner.style.display = 'flex';
+    banner.style.alignItems = 'center';
+    banner.style.gap = '10px';
+    banner.style.boxShadow = '0 10px 25px rgba(14,165,233,0.25)';
+
+    const text = document.createElement('div');
+    text.style.fontWeight = '700';
+    text.style.fontSize = '14px';
+    text.style.lineHeight = '1.4';
+    text.textContent = 'Pro Android je k dispozici aplikace DAGMAR. Stáhněte si APK.';
+    banner.appendChild(text);
+
+    const link = document.createElement('a');
+    link.href = 'https://dagmar.hcasc.cz/download/dochazka-dagmar.apk';
+    link.textContent = 'Stáhnout APK';
+    link.style.background = 'white';
+    link.style.color = '#0ea5e9';
+    link.style.fontWeight = '800';
+    link.style.padding = '8px 12px';
+    link.style.borderRadius = '10px';
+    link.style.textDecoration = 'none';
+    link.style.whiteSpace = 'nowrap';
+    banner.appendChild(link);
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = '×';
+    close.setAttribute('aria-label', 'Zavřít');
+    close.style.marginLeft = 'auto';
+    close.style.background = 'transparent';
+    close.style.border = 'none';
+    close.style.color = 'white';
+    close.style.fontSize = '16px';
+    close.style.cursor = 'pointer';
+    close.style.fontWeight = '700';
+    close.addEventListener('click', () => {
+      banner.remove();
+      try {
+        sessionStorage.setItem(key, '1');
+      } catch (e) {
+        // ignore
+      }
+    });
+    banner.appendChild(close);
+
+    const shell = root.querySelector('.webapp-shell');
+    if (shell) {
+      const wrap = shell.querySelector('.webapp-wrap');
+      if (wrap) {
+        wrap.prepend(banner);
+      } else {
+        shell.prepend(banner);
+      }
+    }
+  };
+
   const ensureDeviceState = () => {
     const current = loadState();
     if (!current.device_id) current.device_id = uuid();
@@ -631,6 +702,7 @@
   const init = async () => {
     setMode();
     window.addEventListener('resize', setMode);
+    maybeRenderAndroidBanner();
     renderRooms();
     bindPhotoInputs();
     createOverlay();
