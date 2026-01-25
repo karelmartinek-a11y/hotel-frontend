@@ -537,12 +537,18 @@
       const room = document.createElement('div');
       room.className = 'breakfast-room';
       room.textContent = `Pokoj ${it.room}`;
+      left.appendChild(room);
+      if (it.name) {
+        const name = document.createElement('div');
+        name.className = 'breakfast-name';
+        name.textContent = it.name;
+        left.appendChild(name);
+      }
       const meta = document.createElement('div');
       meta.className = 'breakfast-meta';
       meta.textContent = `${it.count} ${
         it.count === 1 ? 'osoba' : it.count >= 2 && it.count <= 4 ? 'osoby' : 'osob'
       }`;
-      left.appendChild(room);
       left.appendChild(meta);
       row.appendChild(left);
 

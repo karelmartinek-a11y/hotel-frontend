@@ -269,6 +269,11 @@
   letter-spacing: 0.2px;
 }
 
+.breakfast-name {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.7);
+}
+
 .breakfast-meta {
   font-size: 13px;
   color: rgba(15, 23, 42, 0.78);
