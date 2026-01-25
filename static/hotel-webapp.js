@@ -585,6 +585,13 @@
     });
   };
 
+  const normalizeBreakfastItems = (list) => {
+    return (list || []).map((it) => ({
+      ...it,
+      name: it.name || it.guestName || it.guest_name || null
+    }));
+  };
+
   const loadBreakfast = async (isoDate) => {
     if (state.status !== 'ACTIVE') return;
     const target = isoDate || todayIso();
@@ -594,7 +601,7 @@
       const data = await fetchJson(`/api/v1/breakfast/day?date=${encodeURIComponent(target)}`, {
         headers: { 'X-Device-Id': state.deviceId }
       });
-      const items = (data.items || []).slice().sort((a, b) => Number(a.room) - Number(b.room));
+      const items = normalizeBreakfastItems(data.items).slice().sort((a, b) => Number(a.room) - Number(b.room));
       const status = data.status || (items.length ? 'FOUND' : 'MISSING');
       setBreakfastHeader(target, status === 'MISSING' ? 'Nenalezeno / čeká se' : '');
       renderBreakfast(items, status);
