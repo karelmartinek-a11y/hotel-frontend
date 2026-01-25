@@ -40,6 +40,57 @@
   margin-bottom: 18px;
 }
 
+.webapp-card--header {
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.webapp-card--header .webapp-header {
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.webapp-card--header .webapp-title {
+  gap: 10px;
+}
+
+.webapp-card--header .webapp-title h1 {
+  font-size: 18px;
+}
+
+.webapp-card--header .webapp-title p {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.webapp-card--header .role-chip {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.webapp-card--header-compact {
+  padding: 8px 10px;
+}
+
+.webapp-card--header-compact .webapp-header {
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.webapp-card--header-compact .webapp-title h1 {
+  font-size: 16px;
+}
+
+.webapp-card--header-compact .webapp-title p {
+  font-size: 11px;
+}
+
+.webapp-card--header-compact .role-chip {
+  padding: 4px 9px;
+  font-size: 10px;
+}
+
 .webapp-title {
   display: flex;
   gap: 14px;

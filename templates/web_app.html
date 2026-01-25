@@ -16,13 +16,13 @@
   data-rooms='{{ rooms | tojson }}'
 >
   <div class="webapp-wrap webapp-grid">
-    <div class="webapp-card sticky webapp-card--header">
+    <div class="webapp-card sticky webapp-card--header webapp-card--header-compact">
       <div class="webapp-header">
         <div class="webapp-title">
           <img
             src="{{ url_for('static', path='brand/hotel-logo.svg') }}"
             alt="ASC Hotel Chodov"
-            style="width:44px;height:44px;object-fit:contain;"
+            style="width:36px;height:36px;object-fit:contain;"
           />
           <div>
             <h1>ASC Hotel Chodov</h1>
@@ -96,20 +96,21 @@
     {% elif role_key == 'breakfast' %}
     <h2 style="font-size:22px;text-transform:uppercase;letter-spacing:0.05em;">Přehled snídaní</h2>
     <p class="webapp-muted">Výpis pokojů s objednanou snídaní. Označte hosty, kteří na snídani dorazili.</p>
-    <div class="webapp-card" style="margin-top: 12px;">
-      <div class="webapp-card-head">
-        <div>
-          <div class="webapp-card-title">Přehled snídaní</div>
-          <div class="webapp-muted" data-breakfast-status-text>Načítám...</div>
+        <div class="webapp-card" style="margin-top: 12px;">
+          <div class="webapp-card-head">
+            <div>
+              <div class="webapp-card-title">Přehled snídaní</div>
+              <div class="webapp-muted" data-breakfast-status-text>Načítám...</div>
+            </div>
+            <div class="webapp-actions">
+              <button class="webapp-button" type="button" data-breakfast-prev>◀</button>
+              <div class="webapp-pill" data-breakfast-date style="min-width: 140px; text-align:center;"></div>
+              <button class="webapp-button" type="button" data-breakfast-next>▶</button>
+              <div class="webapp-pill" data-breakfast-total style="min-width: 110px; text-align:center;">—</div>
+            </div>
+          </div>
+          <div class="breakfast-list" data-breakfast-list></div>
         </div>
-        <div class="webapp-actions">
-          <button class="webapp-button" type="button" data-breakfast-prev>◀</button>
-          <div class="webapp-pill" data-breakfast-date style="min-width: 140px; text-align:center;"></div>
-          <button class="webapp-button" type="button" data-breakfast-next>▶</button>
-        </div>
-      </div>
-      <div class="breakfast-list" data-breakfast-list></div>
-    </div>
     {% elif role_key == 'frontdesk' %}
     <h2 style="font-size:22px;text-transform:uppercase;letter-spacing:0.05em;">Ztráty a nálezy</h2>
     <p class="webapp-muted">Seznam nálezů čekajících na vyřízení recepcí.</p>
