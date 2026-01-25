@@ -16,13 +16,13 @@
   data-rooms='{{ rooms | tojson }}'
 >
   <div class="webapp-wrap webapp-grid">
-    <div class="webapp-card sticky">
+    <div class="webapp-card sticky webapp-card--header">
       <div class="webapp-header">
         <div class="webapp-title">
           <img
             src="{{ url_for('static', path='brand/hotel-logo.svg') }}"
             alt="ASC Hotel Chodov"
-            style="width:56px;height:56px;object-fit:contain;"
+            style="width:44px;height:44px;object-fit:contain;"
           />
           <div>
             <h1>ASC Hotel Chodov</h1>
@@ -32,22 +32,7 @@
         <span class="role-chip">{{ role_title }}</span>
       </div>
 
-      <div class="webapp-card" style="box-shadow:none;padding:0;border:none;">
-        <div class="form-row" style="justify-content:space-between;">
-          <span class="status-pill" data-status-pill data-status="UNKNOWN">Načítám</span>
-          <span class="webapp-muted">Device ID: <strong data-device-id>—</strong></span>
-        </div>
-        <div class="webapp-muted" data-status-text></div>
-      </div>
-
-      <div class="webapp-note" data-activation-note>
-        Zařízení čeká na aktivaci. Požádejte administrátora o povolení zařízení v administraci Hotelu.
-      </div>
-
-      <div class="webapp-note webapp-hidden" data-error-box></div>
-      <div class="webapp-note webapp-hidden" data-success-box></div>
-
-      <div class="webapp-actions">
+      <div class="webapp-actions webapp-header-actions">
         <a class="webapp-button ghost" href="/">Zpět na úvod</a>
       </div>
     </div>
@@ -102,11 +87,11 @@
           </div>
         </div>
 
-      <div class="webapp-actions">
-        <button class="webapp-button primary" type="submit">Odeslat hlášení</button>
-        <button class="webapp-button ghost" type="button" onclick="window.location.reload()">Resetovat</button>
-      </div>
-    </form>
+        <div class="webapp-actions">
+          <button class="webapp-button primary" type="submit">Odeslat hlášení</button>
+          <button class="webapp-button ghost" type="button" onclick="window.location.reload()">Resetovat</button>
+        </div>
+      </form>
     {% elif role_key == 'breakfast' %}
     <h2 style="font-size:22px;text-transform:uppercase;letter-spacing:0.05em;">Přehled snídaní</h2>
     <p class="webapp-muted">Výpis pokojů s objednanou snídaní. Označte hosty, kteří na snídani dorazili.</p>
@@ -140,6 +125,26 @@
       <div class="report-list" data-report-list></div>
       {% endif %}
     </div>
+
+    <footer class="webapp-footer">
+      <div class="webapp-card webapp-status-card">
+        <div class="webapp-status-row">
+          <div class="webapp-status-meta">
+            <span class="status-pill" data-status-pill data-status="UNKNOWN">Načítám</span>
+            <div class="webapp-muted" data-status-text></div>
+          </div>
+          <div class="webapp-status-id">
+            <span>Device ID:</span>
+            <strong data-device-id>—</strong>
+          </div>
+        </div>
+        <div class="webapp-note" data-activation-note>
+          Zařízení čeká na aktivaci. Požádejte administrátora o povolení zařízení v administraci Hotelu.
+        </div>
+        <div class="webapp-note webapp-hidden" data-error-box></div>
+        <div class="webapp-note webapp-hidden" data-success-box></div>
+      </div>
+    </footer>
   </div>
 </div>
 {% endblock %}
