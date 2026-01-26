@@ -597,27 +597,30 @@
         done.textContent = 'Označeno';
         actions.appendChild(done);
       }
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `webapp-button ${checked ? 'ghost' : 'primary'}`;
-      btn.textContent = checked ? 'Vrátit označení' : 'Byl na snídani';
-      btn.addEventListener('click', async () => {
-        clearAlerts();
-        try {
-          await fetchJson('/api/v1/breakfast/check', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Device-Id': state.deviceId
-            },
-            body: JSON.stringify({ date: state.breakfastDate, room: it.room, checked: !checked })
-          });
-          await loadBreakfast(state.breakfastDate);
-        } catch (e) {
-          showError('Označení se nezdařilo.');
-        }
-      });
-      actions.appendChild(btn);
+      // V roli "snidane" neumoznujeme vratit oznaceni zpet (jen recepce v editoru).
+      if (!checked) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'webapp-button primary';
+        btn.textContent = 'Byl na snídani';
+        btn.addEventListener('click', async () => {
+          clearAlerts();
+          try {
+            await fetchJson('/api/v1/breakfast/check', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Device-Id': state.deviceId
+              },
+              body: JSON.stringify({ date: state.breakfastDate, room: it.room, checked: true })
+            });
+            await loadBreakfast(state.breakfastDate);
+          } catch (e) {
+            showError('Označení se nezdařilo.');
+          }
+        });
+        actions.appendChild(btn);
+      }
 
       row.appendChild(actions);
       ui.breakfastList.appendChild(row);
@@ -625,11 +628,23 @@
   };
 
   const normalizeBreakfastItems = (list) => {
-    return (list || []).map((it) => ({
-      ...it,
-      name: it.name || it.guestName || it.guest_name || null,
-      note: it.note || it.breakfastNote || it.breakfast_note || null
-    }));
+    return (list || []).map((it) => {
+      const rawNote =
+        it.note ??
+        it.breakfastNote ??
+        it.breakfast_note ??
+        it.breakfast_note_text ??
+        it.noteText ??
+        null;
+      const noteText =
+        typeof rawNote === 'string' ? rawNote.trim() : rawNote != null ? String(rawNote).trim() : '';
+      return {
+        ...it,
+        name: it.name || it.guestName || it.guest_name || null,
+        // Poznamka chodi z backendu typicky jako `note`, ale drzime fallbacky kvuli kompatibilite.
+        note: noteText || null
+      };
+    });
   };
 
   const loadBreakfast = async (isoDate) => {
@@ -708,7 +723,17 @@
       room: Number(it.room),
       count: Number(it.count) || 0,
       name: it.name || it.guestName || it.guest_name || null,
-      note: typeof it.note === 'string' ? it.note : it.note ? String(it.note) : '',
+      note: (() => {
+        const raw =
+          it.note ??
+          it.breakfastNote ??
+          it.breakfast_note ??
+          it.breakfast_note_text ??
+          it.noteText ??
+          '';
+        const text = typeof raw === 'string' ? raw.trim() : raw != null ? String(raw).trim() : '';
+        return text;
+      })(),
       checked: Boolean(it.checkedAt || it.checkedBy)
     }));
   };
@@ -721,8 +746,9 @@
     if (item) item.note = note;
   };
 
-  const saveBreakfastNote = async (room, note) => {
-    clearAlerts();
+  const saveBreakfastNote = async (room, note, opts = {}) => {
+    const silent = Boolean(opts.silent);
+    if (!silent) clearAlerts();
     try {
       await fetchJson('/api/v1/breakfast/note', {
         method: 'POST',
@@ -732,7 +758,7 @@
         },
         body: JSON.stringify({ date: state.breakfastEditorDate, room, note })
       });
-      showSuccess('Poznámka uložena.');
+      if (!silent) showSuccess('Poznámka uložena.');
     } catch (e) {
       showError('Poznámku se nepodařilo uložit.');
       throw e;
@@ -800,12 +826,21 @@
       meta.className = 'breakfast-meta';
       meta.textContent = `${it.count} ${it.count === 1 ? 'osoba' : it.count >= 2 && it.count <= 4 ? 'osoby' : 'osob'}`;
       left.appendChild(meta);
-      if (it.note) {
-        const noteView = document.createElement('div');
-        noteView.className = 'breakfast-note';
-        noteView.textContent = it.note;
-        left.appendChild(noteView);
-      }
+      const noteView = document.createElement('div');
+      noteView.className = 'breakfast-note';
+      const setNoteView = (value) => {
+        const text = (value || '').trim();
+        if (text) {
+          noteView.textContent = text;
+          noteView.classList.remove('webapp-hidden');
+        } else {
+          noteView.textContent = '';
+          noteView.classList.add('webapp-hidden');
+        }
+      };
+      // Poznamka se ma zobrazit i hned po zadani (bez nutnosti refresh/reload).
+      setNoteView(it.note);
+      left.appendChild(noteView);
       row.appendChild(left);
 
       const actions = document.createElement('div');
@@ -818,15 +853,41 @@
       noteInput.className = 'input';
       noteInput.placeholder = 'Poznámka';
       noteInput.value = it.note || '';
-      noteInput.addEventListener('input', (e) => setEditorItemNote(it.room, e.target.value));
-      noteInput.addEventListener('change', async (e) => {
-        if (state.breakfastEditorSource === 'stored') {
-          try {
-            await saveBreakfastNote(it.room, e.target.value);
-          } catch (err) {
-            // už nahlášeno
-          }
-        }
+      let noteAutoSaveTimer = null;
+      let noteLastSaved = (it.note || '').trim();
+      const scheduleAutoSave = (value) => {
+        if (state.breakfastEditorSource !== 'stored') return;
+        const text = (value || '').trim();
+        if (text === noteLastSaved) return;
+        if (noteAutoSaveTimer) window.clearTimeout(noteAutoSaveTimer);
+        noteAutoSaveTimer = window.setTimeout(() => {
+          saveBreakfastNote(it.room, value, { silent: true })
+            .then(() => {
+              noteLastSaved = text;
+            })
+            .catch(() => {
+              // chyba uz je nahlasena
+            });
+        }, 600);
+      };
+      noteInput.addEventListener('input', (e) => {
+        const value = e.target.value;
+        setEditorItemNote(it.room, value);
+        setNoteView(value);
+        scheduleAutoSave(value);
+      });
+      noteInput.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        if (state.breakfastEditorSource !== 'stored') return;
+        const value = noteInput.value;
+        saveBreakfastNote(it.room, value)
+          .then(() => {
+            noteLastSaved = (value || '').trim();
+          })
+          .catch(() => {
+            // už nahlaseno
+          });
       });
       noteWrap.appendChild(noteInput);
       if (state.breakfastEditorSource === 'upload') {
@@ -842,6 +903,7 @@
         noteBtn.addEventListener('click', async () => {
           try {
             await saveBreakfastNote(it.room, noteInput.value);
+            noteLastSaved = (noteInput.value || '').trim();
           } catch (err) {
             // už nahlášeno
           }
@@ -981,17 +1043,25 @@
     }
   };
 
-  const switchFrontdeskTab = (tab) => {
+  const switchFrontdeskTab = (tab, opts = {}) => {
     state.frontdeskTab = tab;
     ui.frontdeskTabs.forEach((btn) => {
       const active = btn.dataset.frontdeskTab === tab;
       btn.classList.toggle('is-active', active);
       btn.classList.toggle('primary', active);
       btn.classList.toggle('ghost', !active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
+    let activePanel = null;
     ui.frontdeskPanels.forEach((panel) => {
-      panel.classList.toggle('webapp-hidden', panel.dataset.frontdeskPanel !== tab);
+      const isActive = panel.dataset.frontdeskPanel === tab;
+      panel.classList.toggle('webapp-hidden', !isActive);
+      if (isActive) activePanel = panel;
     });
+    if (opts.scroll && activePanel && root.classList.contains('mode-mobile')) {
+      // Po vyberu agendy na mobilu posuneme obsah na panel, aby uzivatel nemusel rucne scrollovat.
+      activePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     if (tab === 'breakfast') {
       if (!state.breakfastEditorDate) state.breakfastEditorDate = todayIso();
       loadBreakfastEditor(state.breakfastEditorDate).catch(() => {});
@@ -1005,7 +1075,7 @@
     ui.frontdeskTabs.forEach((btn) => {
       btn.addEventListener('click', () => {
         const tab = btn.dataset.frontdeskTab || 'lostfound';
-        switchFrontdeskTab(tab);
+        switchFrontdeskTab(tab, { scroll: true });
       });
     });
   };
@@ -1044,7 +1114,7 @@
           }
         }, 30000);
       } else if (role === 'frontdesk') {
-        switchFrontdeskTab('lostfound');
+        switchFrontdeskTab('lostfound', { scroll: false });
         refreshTimer = window.setInterval(() => {
           if (document.visibilityState === 'visible' && state.status === 'ACTIVE') {
             if (state.frontdeskTab === 'breakfast') {
