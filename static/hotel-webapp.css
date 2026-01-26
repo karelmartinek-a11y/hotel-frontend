@@ -189,6 +189,44 @@
   gap: 10px;
 }
 
+.frontdesk-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.frontdesk-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.frontdesk-tile .webapp-pill {
+  align-self: flex-start;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.frontdesk-tile.primary {
+  border-color: #7dd3fc;
+  box-shadow: 0 12px 28px rgba(14, 116, 144, 0.16);
+}
+
+.frontdesk-tile.ghost {
+  opacity: 0.9;
+}
+
+.frontdesk-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.14);
+}
+
 .webapp-header-actions {
   justify-content: flex-start;
   gap: 8px;
