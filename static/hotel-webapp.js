@@ -240,9 +240,12 @@
   const registerDevice = async () => {
     const stored = ensureDeviceState();
     const displayName = (stored.display_name || '').trim();
+    if (!displayName) {
+      throw new Error('DISPLAY_NAME_REQUIRED');
+    }
     const payload = {
       device_id: stored.device_id,
-      display_name: displayName || undefined,
+      display_name: displayName,
       device_info: {
         ua: navigator.userAgent,
         platform: navigator.platform || '',
@@ -1133,6 +1136,12 @@
         }, 30000);
       }
     } catch (err) {
+      const msg = (err && err.message) ? String(err.message) : '';
+      if (msg.includes('DISPLAY_NAME_REQUIRED') || msg.toLowerCase().includes('display_name required')) {
+        setStatus('PENDING', 'Vyplňte jméno a odešlete žádost na stránce čekající na schválení.');
+        window.location.href = '/device/pending';
+        return;
+      }
       setStatus('UNKNOWN', 'Nepodařilo se načíst stav zařízení.');
       showError('Nelze se připojit k serveru.');
     }
