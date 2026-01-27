@@ -15,8 +15,13 @@
   </div>
   <h1 class="text-2xl font-semibold">Vítejte</h1>
   <p class="text-slate-300 max-w-md text-center">
-    Pokračujeme do aplikace…
+    Vyberte roli a pokračujte do aplikace.
   </p>
-  <a class="px-5 py-3 rounded-xl bg-slate-900 text-white" href="/app/housekeeping">Pokračovat</a>
+  <div class="webapp-grid" style="grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; width:min(640px, 100%);">
+    <a class="px-5 py-3 rounded-xl bg-slate-900 text-white text-center" href="/app/housekeeping">Pokojská</a>
+    <a class="px-5 py-3 rounded-xl bg-slate-900 text-white text-center" href="/app/frontdesk">Recepce</a>
+    <a class="px-5 py-3 rounded-xl bg-slate-900 text-white text-center" href="/app/maintenance">Údržba</a>
+    <a class="px-5 py-3 rounded-xl bg-slate-900 text-white text-center" href="/app/breakfast">Snídaně</a>
+  </div>
 </div>
 {% endblock %}
