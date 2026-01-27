@@ -198,7 +198,7 @@ def device_pending(request: Request, settings: Settings = Depends(Settings.from_
         "device_pending.html",
         {
             **_base_ctx(request, settings=settings, hide_shell=True, show_splash=True),
-            "pending_logo": "asc_logo.png",
+            "pending_logo": "brand/HotelLogo.png",
             "pending_brand": "ASC Hotel Chodov",
             "pending_app": "Hotel App",
         },
