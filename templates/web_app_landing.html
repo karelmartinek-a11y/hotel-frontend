@@ -9,22 +9,14 @@
 {% endblock %}
 
 {% block content %}
-<script>
-  // Automatický redirect po zobrazení (1s), fallback tlačítko níže.
-  window.addEventListener('load', function () {
-    setTimeout(function () {
-      window.location.assign('/app');
-    }, 1000);
-  });
-</script>
 <div class="hotel-landing">
   <div class="hotel-landing__brand">
     <img src="/static/brand/HotelLogo.png" alt="Hotel Logo" width="180" height="180" class="hotel-landing__logo" />
   </div>
   <h1 class="text-2xl font-semibold">Vítejte</h1>
   <p class="text-slate-300 max-w-md text-center">
-    Pokračujte do aplikace. Pokud nedojde k automatickému přesměrování, klepněte na tlačítko.
+    Pokračujeme do aplikace…
   </p>
-  <a class="px-5 py-3 rounded-xl bg-slate-900 text-white" href="/app">Otevřít aplikaci</a>
+  <a class="px-5 py-3 rounded-xl bg-slate-900 text-white" href="/app/housekeeping">Pokračovat</a>
 </div>
 {% endblock %}

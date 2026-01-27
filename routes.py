@@ -137,12 +137,8 @@ def public_landing(request: Request, settings: Settings = Depends(Settings.from_
 
 @router.get("/app", response_class=HTMLResponse)
 def web_app_landing(request: Request, settings: Settings = Depends(Settings.from_env)):
-    return templates.TemplateResponse(
-        "web_app_landing.html",
-        {
-            **_base_ctx(request, settings=settings, hide_shell=True),
-        },
-    )
+    # Přesměrujeme přímo na výchozí roli (housekeeping), aby uživatel nemusel klikat.
+    return _redirect("/app/housekeeping")
 
 
 @router.get("/app/{role}", response_class=HTMLResponse)
