@@ -20,7 +20,7 @@
       <div class="webapp-header">
         <div class="webapp-title">
           <img
-            src="{{ url_for('static', path='brand/HotelLogo.png') }}"
+            src="{{ url_for('static', path='brand/hotel-logo.svg') }}"
             alt="ASC Hotel Chodov"
             style="width:36px;height:36px;object-fit:contain;"
           />
@@ -115,72 +115,27 @@
     <h2 style="font-size:22px;text-transform:uppercase;letter-spacing:0.05em;">Recepce</h2>
     <p class="webapp-muted">Vyberte agendu: Ztráty a nálezy nebo Zadání snídaní.</p>
 
-    <div class="webapp-grid frontdesk-grid" role="group" aria-label="Vyber agendy">
-      <button
-        class="frontdesk-tile primary"
-        type="button"
-        data-frontdesk-tab="lostfound"
-        aria-controls="frontdesk-panel-lostfound"
-        aria-pressed="true"
-      >
-        <div class="frontdesk-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M7 7h10v4H7V7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M6 11h12v7a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </div>
-        <div class="frontdesk-body">
-          <div class="frontdesk-title">Ztráty a nálezy</div>
-          <div class="frontdesk-desc webapp-muted">Seznam hlášení čekajících na vyřízení recepcí.</div>
-          <div class="frontdesk-meta">
-            <span class="frontdesk-cta">Otevřít</span>
-          </div>
-        </div>
-        <div class="frontdesk-chevron" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
+    <div class="webapp-grid frontdesk-grid">
+      <button class="webapp-card frontdesk-tile primary" type="button" data-frontdesk-tab="lostfound">
+        <div class="webapp-card-title">Ztráty a nálezy</div>
+        <div class="webapp-muted">Seznam hlášení čekajících na vyřízení recepcí.</div>
+        <span class="webapp-pill">Otevřít</span>
       </button>
-
-      <button
-        class="frontdesk-tile ghost"
-        type="button"
-        data-frontdesk-tab="breakfast"
-        aria-controls="frontdesk-panel-breakfast"
-        aria-pressed="false"
-      >
-        <div class="frontdesk-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M8 10v8a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-8" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M9 10V7a3 3 0 0 1 6 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </div>
-        <div class="frontdesk-body">
-          <div class="frontdesk-title">Zadání snídaní</div>
-          <div class="frontdesk-desc webapp-muted">Nahrajte PDF přehledu, doplňte poznámky a označujte hosty.</div>
-          <div class="frontdesk-meta">
-            <span class="frontdesk-cta">Otevřít</span>
-          </div>
-        </div>
-        <div class="frontdesk-chevron" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
+      <button class="webapp-card frontdesk-tile" type="button" data-frontdesk-tab="breakfast">
+        <div class="webapp-card-title">Zadání snídaní</div>
+        <div class="webapp-muted">Nahrajte PDF přehledu, doplňte poznámky a označujte hosty.</div>
+        <span class="webapp-pill">Otevřít</span>
       </button>
     </div>
 
-    <div data-frontdesk-panel="lostfound" id="frontdesk-panel-lostfound">
+    <div data-frontdesk-panel="lostfound">
       <div class="webapp-actions">
         <button class="webapp-button ghost" type="button" data-refresh-reports>Aktualizovat</button>
       </div>
       <div class="report-list" data-report-list></div>
     </div>
 
-    <div class="webapp-card webapp-hidden" data-frontdesk-panel="breakfast" id="frontdesk-panel-breakfast" style="margin-top:12px;">
+    <div class="webapp-card webapp-hidden" data-frontdesk-panel="breakfast" style="margin-top:12px;">
       <div class="webapp-card-head">
         <div>
           <div class="webapp-card-title">Snídaně — zadání</div>

@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% set show_splash = True %}
-{% set with_shell = False %}
 
 {% block title %}Hotel App – Webové rozhraní{% endblock %}
 
@@ -9,19 +7,42 @@
 {% endblock %}
 
 {% block content %}
-<div class="hotel-landing">
-  <div class="hotel-landing__brand">
-    <img src="/static/brand/HotelLogo.png" alt="Hotel Logo" width="180" height="180" class="hotel-landing__logo" />
-  </div>
-  <h1 class="text-2xl font-semibold">Vítejte</h1>
-  <p class="text-slate-300 max-w-md text-center">
-    Vyberte roli a pokračujte do aplikace.
-  </p>
-  <div class="webapp-grid" style="grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; width:min(640px, 100%);">
-    <a class="px-5 py-3 rounded-xl bg-slate-900 text-white text-center" href="/app/housekeeping">Pokojská</a>
-    <a class="px-5 py-3 rounded-xl bg-slate-900 text-white text-center" href="/app/frontdesk">Recepce</a>
-    <a class="px-5 py-3 rounded-xl bg-slate-900 text-white text-center" href="/app/maintenance">Údržba</a>
-    <a class="px-5 py-3 rounded-xl bg-slate-900 text-white text-center" href="/app/breakfast">Snídaně</a>
+<div class="webapp-shell">
+  <div class="webapp-wrap">
+    <div class="webapp-card">
+      <div class="webapp-header">
+        <div class="webapp-title">
+          <img
+            src="{{ url_for('static', path='asc_logo.png') }}"
+            alt="ASC Hotel Chodov"
+            style="width:56px;height:56px;object-fit:contain;"
+          />
+          <div>
+            <h1>Hotel App – webové rozhraní</h1>
+            <p>Vyberte roli a pokračujte do webové aplikace.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="webapp-grid" style="grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));">
+        <a class="webapp-card webapp-button primary" href="/app/housekeeping" style="justify-content:center;">
+          Pokojská
+        </a>
+        <a class="webapp-card webapp-button primary" href="/app/frontdesk" style="justify-content:center;">
+          Recepce
+        </a>
+        <a class="webapp-card webapp-button primary" href="/app/maintenance" style="justify-content:center;">
+          Údržba
+        </a>
+        <a class="webapp-card webapp-button primary" href="/app/breakfast" style="justify-content:center;">
+          Snídaně
+        </a>
+      </div>
+
+      <div class="webapp-note" style="margin-top:16px;">
+        Pokud zařízení není aktivní, uvidíte výzvu k aktivaci. Aktivaci provede administrátor v sekci zařízení.
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

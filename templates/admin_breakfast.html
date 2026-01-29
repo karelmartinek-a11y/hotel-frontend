@@ -227,25 +227,6 @@
       <section class="card pad">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
           <div>
-            <div style="font-weight:850;">Přehled uložených snídaní</div>
-            <div style="color:var(--muted);font-size:13px;margin-top:4px;">
-              Stejný výpis jako v sekci Snídaně na hotel.hcasc.cz (jen pro přečtení).
-            </div>
-            <div class="webapp-muted" data-admin-breakfast-view-status style="margin-top:4px;">&nbsp;</div>
-          </div>
-          <div class="webapp-actions">
-            <button class="webapp-button" type="button" data-admin-breakfast-view-prev>◀</button>
-            <div class="webapp-pill" data-admin-breakfast-view-date style="min-width: 140px; text-align:center;">—</div>
-            <button class="webapp-button" type="button" data-admin-breakfast-view-next>▶</button>
-            <div class="webapp-pill" data-admin-breakfast-view-total style="min-width: 110px; text-align:center;">—</div>
-          </div>
-        </div>
-        <div class="breakfast-list" data-admin-breakfast-view-list style="margin-top:10px;"></div>
-      </section>
-
-      <section class="card pad">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
-          <div>
             <div style="font-weight:850;">Sn&iacute;daně &mdash; zad&aacute;n&iacute; (admin)</div>
             <div style="color:var(--muted);font-size:13px;margin-top:4px;">
               Stejn&eacute; ovl&aacute;d&aacute;n&iacute; jako na recepci: n&aacute;hled PDF, pozn&aacute;mky, označen&iacute; a vr&aacute;cen&iacute; označen&iacute;.
@@ -471,24 +452,10 @@
       importBtn: document.querySelector('[data-admin-breakfast-import]')
     };
 
-    const viewerUi = {
-      date: document.querySelector('[data-admin-breakfast-view-date]'),
-      status: document.querySelector('[data-admin-breakfast-view-status]'),
-      total: document.querySelector('[data-admin-breakfast-view-total]'),
-      prev: document.querySelector('[data-admin-breakfast-view-prev]'),
-      next: document.querySelector('[data-admin-breakfast-view-next]'),
-      list: document.querySelector('[data-admin-breakfast-view-list]')
-    };
-
     const adminState = {
       date: null,
       source: 'stored',
       file: null,
-      items: []
-    };
-
-    const viewerState = {
-      date: null,
       items: []
     };
 
@@ -580,151 +547,13 @@
     };
 
     const normalizeItems = (list) =>
-      (list || []).map((it) => {
-        const rawNote =
-          it.note ??
-          it.breakfastNote ??
-          it.breakfast_note ??
-          it.breakfast_note_text ??
-          it.noteText ??
-          null;
-        const note =
-          typeof rawNote === 'string'
-            ? rawNote.trim()
-            : rawNote != null
-              ? String(rawNote).trim()
-              : '';
-        return {
-          room: Number(it.room),
-          count: Number(it.count ?? it.breakfast_count ?? it.breakfastCount ?? 0) || 0,
-          name: it.name || it.guestName || it.guest_name || null,
-          note,
-          checked: Boolean(it.checked || it.checkedAt || it.checkedBy),
-        };
-      });
-
-    const setViewerHeader = (isoDate, statusText, totalCount = null, statusType = 'muted') => {
-      if (viewerUi.date) viewerUi.date.textContent = formatDateOnly(isoDate);
-      if (viewerUi.status) {
-        viewerUi.status.textContent = statusText || ' ';
-        viewerUi.status.style.color = statusType === 'err' ? '#b91c1c' : 'var(--muted)';
-      }
-      if (viewerUi.total) {
-        if (typeof totalCount === 'number' && !Number.isNaN(totalCount)) {
-          const label = totalCount === 1 ? 'snídaně' : totalCount >= 2 && totalCount <= 4 ? 'snídaně' : 'snídaní';
-          viewerUi.total.textContent = `${totalCount} ${label}`;
-        } else {
-          viewerUi.total.textContent = '—';
-        }
-      }
-    };
-
-    const renderViewerBreakfast = (items, status) => {
-      if (!viewerUi.list) return;
-      viewerUi.list.innerHTML = '';
-
-      if (status === 'MISSING') {
-        const empty = document.createElement('div');
-        empty.className = 'breakfast-empty';
-        empty.textContent = 'Nenalezeno / čeká se na stažení přehledu.';
-        viewerUi.list.appendChild(empty);
-        return;
-      }
-
-      if (!items || !items.length) {
-        const empty = document.createElement('div');
-        empty.className = 'breakfast-empty';
-        empty.textContent = 'Žádné pokoje se snídaní.';
-        viewerUi.list.appendChild(empty);
-        return;
-      }
-
-      items.forEach((it) => {
-        const row = document.createElement('div');
-        row.className = 'breakfast-row';
-
-        const left = document.createElement('div');
-        left.className = 'breakfast-left';
-        const room = document.createElement('div');
-        room.className = 'breakfast-room';
-        room.textContent = `Pokoj ${it.room}`;
-        left.appendChild(room);
-        if (it.name) {
-          const name = document.createElement('div');
-          name.className = 'breakfast-name';
-          name.textContent = it.name;
-          left.appendChild(name);
-        }
-        const meta = document.createElement('div');
-        meta.className = 'breakfast-meta';
-        meta.textContent = `${it.count} ${it.count === 1 ? 'osoba' : it.count >= 2 && it.count <= 4 ? 'osoby' : 'osob'}`;
-        left.appendChild(meta);
-        const noteText = typeof it.note === 'string' ? it.note.trim() : '';
-        if (noteText) {
-          const note = document.createElement('div');
-          note.className = 'breakfast-note';
-          note.textContent = noteText;
-          left.appendChild(note);
-        }
-        row.appendChild(left);
-
-        const actions = document.createElement('div');
-        actions.className = 'webapp-actions';
-        const checked = Boolean(it.checked || it.checkedAt || it.checkedBy);
-        if (checked) {
-          row.classList.add('is-checked');
-          const done = document.createElement('div');
-          done.className = 'webapp-pill';
-          done.textContent = 'Označeno';
-          actions.appendChild(done);
-        } else {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'webapp-button primary';
-          btn.textContent = 'Byl na snídani';
-          btn.addEventListener('click', async () => {
-            try {
-              await fetchJson('/admin/breakfast/check', {
-                method: 'POST',
-                body: JSON.stringify({ date: viewerState.date, room: it.room, checked: true })
-              });
-              await loadViewerBreakfast(viewerState.date);
-            } catch (err) {
-              setViewerHeader(viewerState.date, 'Označení se nepodařilo uložit.', null, 'err');
-            }
-          });
-          actions.appendChild(btn);
-        }
-        row.appendChild(actions);
-        viewerUi.list.appendChild(row);
-      });
-    };
-
-    const loadViewerBreakfast = async (isoDate) => {
-      viewerState.date = isoDate || todayIso();
-      setViewerHeader(viewerState.date, 'Načítám...', null);
-      try {
-        const data = await fetchJson(`/admin/breakfast/day?date=${encodeURIComponent(viewerState.date)}`);
-        const items = normalizeItems(data.items).sort((a, b) => Number(a.room) - Number(b.room));
-        const status = data.status || (items.length ? 'FOUND' : 'MISSING');
-        const total = items.reduce((sum, it) => sum + (Number(it.count) || 0), 0);
-        setViewerHeader(
-          viewerState.date,
-          status === 'MISSING' ? 'Nenalezeno / čeká se na přehled' : '',
-          total
-        );
-        renderViewerBreakfast(items, status);
-      } catch (err) {
-        setViewerHeader(viewerState.date, 'Nepodařilo se načíst přehled.', null, 'err');
-        if (viewerUi.list) {
-          viewerUi.list.innerHTML = '';
-          const empty = document.createElement('div');
-          empty.className = 'breakfast-empty';
-          empty.textContent = 'Nepodařilo se načíst přehled.';
-          viewerUi.list.appendChild(empty);
-        }
-      }
-    };
+      (list || []).map((it) => ({
+        room: Number(it.room),
+        count: Number(it.count) || 0,
+        name: it.name || it.guestName || it.guest_name || null,
+        note: typeof it.note === 'string' ? it.note : it.note ? String(it.note) : '',
+        checked: Boolean(it.checkedAt || it.checkedBy)
+      }));
 
     const setItemNote = (room, note) => {
       const item = adminState.items.find((it) => Number(it.room) === Number(room));
@@ -930,23 +759,6 @@
         setAdminStatus('Uložení přehledu se nezdařilo.', 'err');
       }
     };
-
-    if (viewerUi.prev && viewerUi.next) {
-      viewerUi.prev.addEventListener('click', () => {
-        const prev = addDaysIso(viewerState.date || todayIso(), -1);
-        loadViewerBreakfast(prev).catch(() => {});
-      });
-      viewerUi.next.addEventListener('click', () => {
-        const next = addDaysIso(viewerState.date || todayIso(), 1);
-        loadViewerBreakfast(next).catch(() => {});
-      });
-    }
-
-    if (viewerUi.list) {
-      viewerState.date = todayIso();
-      setViewerHeader(viewerState.date, '', null);
-      loadViewerBreakfast(viewerState.date).catch(() => {});
-    }
 
     if (adminUi.uploadInput) {
       adminUi.uploadInput.addEventListener('change', (e) => {

@@ -16,7 +16,6 @@
     <link rel="stylesheet" href="/static/app.css" />
     <link rel="stylesheet" href="/static/dagmar.css" />
     <link rel="stylesheet" href="/static/hotel-brand.css" />
-    <link rel="stylesheet" href="/static/brand/hotel-theme.css" />
     <script defer src="/static/deploy-stamp.js"></script>
 
     <meta name="referrer" content="no-referrer" />
@@ -25,67 +24,6 @@
   </head>
 
   <body class="bg-slate-50 text-slate-900 antialiased">
-    <script>
-      (function () {
-        try {
-          var ua = navigator.userAgent || '';
-          if (!/android/i.test(ua)) return;
-          if (!location.pathname.startsWith('/admin')) return;
-          var key = 'hotel_admin_banner';
-          try {
-            if (sessionStorage.getItem(key) === '1') return;
-          } catch (e) {}
-          var bar = document.createElement('div');
-          bar.style.position = 'sticky';
-          bar.style.top = '0';
-          bar.style.zIndex = '200';
-          bar.style.background = 'linear-gradient(90deg,#0ea5e9,#38bdf8)';
-          bar.style.color = 'white';
-          bar.style.padding = '10px 14px';
-          bar.style.display = 'flex';
-          bar.style.alignItems = 'center';
-          bar.style.gap = '10px';
-          bar.style.boxShadow = '0 10px 25px rgba(14,165,233,0.25)';
-          var text = document.createElement('div');
-          text.style.fontWeight = '700';
-          text.style.fontSize = '13px';
-          text.textContent = 'Aplikace Hotel Admin pro Android je dostupná ke stažení.';
-          bar.appendChild(text);
-          var link = document.createElement('a');
-          link.href = '/download/adminhcasc.apk';
-          link.textContent = 'Stáhnout APK';
-          link.style.background = 'white';
-          link.style.color = '#0ea5e9';
-          link.style.fontWeight = '800';
-          link.style.padding = '6px 10px';
-          link.style.borderRadius = '10px';
-          link.style.textDecoration = 'none';
-          link.style.whiteSpace = 'nowrap';
-          bar.appendChild(link);
-          var close = document.createElement('button');
-          close.type = 'button';
-          close.textContent = '×';
-          close.setAttribute('aria-label', 'Zavřít');
-          close.style.marginLeft = 'auto';
-          close.style.background = 'transparent';
-          close.style.border = 'none';
-          close.style.color = 'white';
-          close.style.fontSize = '16px';
-          close.style.cursor = 'pointer';
-          close.style.fontWeight = '700';
-          close.addEventListener('click', function () {
-            bar.remove();
-            try {
-              sessionStorage.setItem(key, '1');
-            } catch (e) {}
-          });
-          bar.appendChild(close);
-          document.body.insertBefore(bar, document.body.firstChild);
-        } catch (e) {
-          console.warn('admin apk banner error', e);
-        }
-      })();
-    </script>
     {% set with_shell = not hide_shell %}
     {% set content_body %}{% block content %}{% endblock %}{% endset %}
 
@@ -95,7 +33,7 @@
       style="position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:linear-gradient(180deg, #0b1b3a 0%, #0a1226 35%, #070b14 100%);transition:opacity 0.4s ease;opacity:1;"
     >
       <div style="display:flex;flex-direction:column;align-items:center;gap:16px;color:#e8eefc;">
-        <img src="/static/brand/HotelLogo.png" alt="Hotel Logo" style="width:160px;height:160px;object-fit:contain;" class="hotel-logo" />
+        <img src="/static/asc_logo.png" alt="ASC Hotel Chodov" style="width:180px;height:180px;object-fit:contain;" />
         <div style="font-weight:800;font-size:18px;">Načítám…</div>
       </div>
     </div>
@@ -112,14 +50,14 @@
     {% endif %}
 
     {% if with_shell %}
-    <div id="hotel-app-root" class="min-h-screen">
+    <div class="min-h-screen">
       <!-- Top bar -->
       <header class="border-b border-slate-200 bg-gradient-to-r from-sky-600 via-sky-500 to-cyan-400 text-white shadow">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div class="flex items-center gap-3">
             <img
-      src="/static/brand/HotelLogo.png"
-      alt="ASC Hotel Chodov"
+              src="/static/asc_logo.png"
+              alt="ASC Hotel Chodov"
               class="h-12 w-auto select-none drop-shadow-lg"
               loading="eager"
               decoding="async"
@@ -167,20 +105,7 @@
       </div>
     </div>
     {% else %}
-    <div id="hotel-app-root" class="w-full h-full overflow-y-scroll">{{ content_body }}</div>
+    {{ content_body }}
     {% endif %}
-
-    <!-- Global Loader (page load + uploads) -->
-    <div id="hotel-loader" class="hotel-loader" aria-live="polite" aria-busy="false" hidden>
-      <div class="hotel-loader__card" role="status">
-        <img class="hotel-loader__logo" src="/static/brand/HotelLogo.png" alt="Hotel Logo" />
-        <div class="hotel-loader__title" id="hotel-loader-title">Načítám…</div>
-        <div class="hotel-loader__hint" id="hotel-loader-hint">Prosím vyčkejte.</div>
-        <div class="hotel-loader__bar" aria-hidden="true"><div class="hotel-loader__barFill"></div></div>
-        <button class="hotel-loader__retry" type="button" id="hotel-loader-retry" hidden>Zkusit znovu</button>
-      </div>
-    </div>
-
-    <script src="/static/brand/hotel-loader.js" defer></script>
   </body>
 </html>
