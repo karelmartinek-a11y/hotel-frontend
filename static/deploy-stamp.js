@@ -1,18 +1,43 @@
 (function () {
-  var lines = [
-    "Hotel Frontend: 0121521",
-    "Hotel Backend: 47f18a4",
-  ];
+  function loadJson(url) {
+    return fetch(url, { cache: "no-store" })
+      .then(function (resp) {
+        if (!resp.ok) return null;
+        return resp.json();
+      })
+      .catch(function () {
+        return null;
+      });
+  }
 
-  document.addEventListener("DOMContentLoaded", function () {
+  function renderBadge(frontendCommit, backendCommit) {
+    if (!frontendCommit && !backendCommit) {
+      return;
+    }
+
     var badge = document.createElement("div");
     badge.className = "deployment-badge";
-    badge.setAttribute("aria-label", "Informace o aktuálním nasazení");
-    lines.forEach(function (line) {
-      var lineEl = document.createElement("div");
-      lineEl.textContent = line;
-      badge.appendChild(lineEl);
-    });
+    badge.setAttribute("aria-label", "Informace o nasazeni");
+
+    var frontLine = document.createElement("div");
+    frontLine.textContent = "Hotel Frontend: " + (frontendCommit || "-");
+    badge.appendChild(frontLine);
+
+    var backLine = document.createElement("div");
+    backLine.textContent = "Hotel Backend: " + (backendCommit || "-");
+    badge.appendChild(backLine);
+
     document.body.appendChild(badge);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    Promise.all([
+      loadJson("/static/frontend-version.json"),
+      loadJson("/api/version"),
+    ]).then(function (values) {
+      var frontendCommit = values[0] && values[0].frontend_commit;
+      var backendCommit = values[1] && values[1].backend_deploy_tag;
+      renderBadge(frontendCommit, backendCommit);
+    });
   });
 })();
