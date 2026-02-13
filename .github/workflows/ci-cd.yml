@@ -44,7 +44,7 @@ jobs:
             git checkout main
             git reset --hard origin/main
             install -m 755 /srv/hcasc/_repos/hotel-backend/deploy/sandbox/run-tests.sh /opt/hotelapp/deploy/sandbox/run-tests.sh
-            cd /opt/hotelapp/deploy/sandbox && ./run-tests.sh || echo \"Sandbox tests failed, pokracuji v deploy (viz /var/log/hotelapp/sandbox-tests.log)\"
+            cd /opt/hotelapp/deploy/sandbox && ./run-tests.sh || echo 'Sandbox tests failed, pokracuji v deploy; viz /var/log/hotelapp/sandbox-tests.log'
             cd /opt/hotelapp/deploy && docker compose build backend
             cd /opt/hotelapp/deploy && docker compose up -d backend
             printf '%s HOTEL frontend: auto-deploy main\n' "$(date '+%F %T')" >> /var/log/hotelapp/deploy.log
