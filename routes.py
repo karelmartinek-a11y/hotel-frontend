@@ -1,42 +1,57 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Optional
+import hashlib
+import secrets
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from PIL import Image
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..config import Settings
 from ..db.models import (
-    Device,
-    DeviceStatus,
     HistoryActorType,
+    InventoryIngredient,
+    InventoryUnit,
+    PortalSmtpSettings,
+    PortalUser,
+    PortalUserResetToken,
+    PortalUserRole,
     Report,
     ReportHistory,
     ReportHistoryAction,
     ReportPhoto,
     ReportStatus,
     ReportType,
+    StockCard,
+    StockCardLine,
+    StockCardType,
 )
 from ..db.session import get_db
+from ..media.inventory_storage import get_inventory_media_root
 from ..media.storage import MediaStorage, get_media_paths_for_photo
 from ..security.admin_auth import (
+    ADMIN_USERNAME,
+    AdminAuthError,
     admin_change_password,
     admin_login_check,
     admin_logout,
     admin_require,
     admin_session_is_authenticated,
+    hash_password,
     set_admin_session,
+    verify_password,
 )
+from ..security.crypto import Crypto
 from ..security.csrf import csrf_protect, csrf_token_ensure
 from ..security.rate_limit import rate_limit
-from .ua_detect import detect_client_kind
+from ..security.user_auth import clear_user_session, get_user_session, set_user_session
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/web/templates")
@@ -49,43 +64,23 @@ ROOMS_ALLOWED = (
     [*range(301, 311)]
 )
 
-WEB_APP_ROLES = {
-    "housekeeping": "Pokojská",
-    "frontdesk": "Recepce",
-    "maintenance": "Údržba",
-    "breakfast": "Snídaně",
+PORTAL_ROLE_LABELS: dict[PortalUserRole, str] = {
+    PortalUserRole.HOUSEKEEPING: "Pokojská",
+    PortalUserRole.FRONTDESK: "Recepce",
+    PortalUserRole.MAINTENANCE: "Údržba",
+    PortalUserRole.BREAKFAST: "Snídaně",
 }
 
 
 def _now() -> datetime:
-    return datetime.now(tz=timezone.utc)
-
-
-# Vybere šablonu podle detekované třídy zařízení (pokud varianta existuje).
-def _template_for(base_name: str, device_class: str) -> str:
-    dc = (device_class or "").lower()
-    if dc not in ("mobile", "tablet", "desktop"):
-        dc = "desktop"
-
-    if base_name.endswith(".html"):
-        stem = base_name[:-5]
-        candidate = f"{stem}__{dc}.html"
-    else:
-        candidate = f"{base_name}__{dc}"
-
-    try:
-        # FastAPI používá Jinja2Templates; ověříme, zda varianta existuje.
-        templates.env.loader.get_source(templates.env, candidate)  # type: ignore[arg-type]
-        return candidate
-    except Exception:
-        return base_name
+    return datetime.now(tz=UTC)
 
 
 def _fmt_dt(dt: datetime | None) -> str | None:
     if dt is None:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt.astimezone(TZ_LOCAL).strftime("%d.%m.%Y %H:%M")
 
 
@@ -142,99 +137,103 @@ def _parse_date_filter(raw: str) -> date:
         raise HTTPException(status_code=400, detail="Invalid date") from e
 
 
+def _portal_session_user(request: Request, db: Session, settings: Settings) -> PortalUser | None:
+    sess = get_user_session(request, settings=settings)
+    if not sess.authenticated or not sess.user_id:
+        return None
+    user = db.get(PortalUser, int(sess.user_id))
+    if not user or not user.is_active:
+        return None
+    return user
+
+
+def _require_portal_user(request: Request, db: Session, settings: Settings) -> PortalUser:
+    user = _portal_session_user(request, db, settings)
+    if not user:
+        raise HTTPException(status_code=401, detail="Login required")
+    return user
+
+
+def _authenticate_portal_user(email: str, password: str, db: Session) -> PortalUser | None:
+    email_norm = (email or "").strip().lower()
+    if not email_norm or not password:
+        return None
+    user = db.scalar(select(PortalUser).where(PortalUser.email == email_norm))
+    if not user or not user.is_active or not user.password_hash:
+        return None
+    if not verify_password(password, user.password_hash):
+        return None
+    return user
+
+
+def _ensure_smtp_settings(db: Session) -> PortalSmtpSettings:
+    cfg = db.scalar(select(PortalSmtpSettings).order_by(PortalSmtpSettings.id.asc()))
+    if cfg is None:
+        cfg = PortalSmtpSettings()
+        db.add(cfg)
+        db.commit()
+        db.refresh(cfg)
+    return cfg
+
+
+def _smtp_password(cfg: PortalSmtpSettings, settings: Settings) -> str | None:
+    if not cfg.password_enc:
+        return None
+    if not settings.crypto_secret:
+        return None
+    crypto = Crypto.from_secret(settings.crypto_secret)
+    try:
+        return crypto.decrypt_str(cfg.password_enc)
+    except Exception:
+        return None
+
+
+def _send_reset_email(*, settings: Settings, cfg: PortalSmtpSettings, to_email: str, reset_url: str) -> None:
+    import smtplib
+    from email.message import EmailMessage
+
+    host = (cfg.host or "").strip()
+    if not host or not cfg.port:
+        raise ValueError("SMTP není nastaveno.")
+    username = (cfg.username or "").strip()
+    password = _smtp_password(cfg, settings) if cfg.password_enc else None
+    security = (cfg.security or "SSL").strip().upper()
+    from_email = (cfg.from_email or username or "").strip()
+    if not from_email:
+        raise ValueError("Chybí odesílací e-mail.")
+
+    msg = EmailMessage()
+    msg["Subject"] = "Nastavení nebo změna hesla"
+    msg["From"] = f"{cfg.from_name} <{from_email}>" if cfg.from_name else from_email
+    msg["To"] = to_email
+    msg.set_content(
+        
+            "Dobrý den,\n\n"
+            "pro nastavení nebo změnu hesla použijte tento odkaz (platnost 24 hodin):\n\n"
+            f"{reset_url}\n\n"
+            "Pokud jste o změnu nežádali, ignorujte tento e-mail."
+        
+    )
+
+    server: smtplib.SMTP
+    if security == "SSL":
+        server = smtplib.SMTP_SSL(host, int(cfg.port), timeout=20)
+    else:
+        server = smtplib.SMTP(host, int(cfg.port), timeout=20)
+        if security == "STARTTLS":
+            server.starttls()
+
+    try:
+        if username and password:
+            server.login(username, password)
+        server.send_message(msg)
+    finally:
+        server.quit()
+
+
 @router.get("/", response_class=HTMLResponse)
 def public_landing(request: Request, settings: Settings = Depends(Settings.from_env)):
-    device_class = detect_client_kind(request)
-    return templates.TemplateResponse(
-        "public_landing.html",
-        {
-            **_base_ctx(request, settings=settings),
-            "device_class": device_class,
-            "apk_version": settings.app_version,
-        },
-    )
-
-
-@router.get("/app", response_class=HTMLResponse)
-def web_app_landing(request: Request, settings: Settings = Depends(Settings.from_env)):
-    return templates.TemplateResponse(
-        "web_app_landing.html",
-        {
-            **_base_ctx(request, settings=settings, hide_shell=True),
-        },
-    )
-
-
-@router.get("/app/{role}", response_class=HTMLResponse)
-def web_app_role(
-    request: Request,
-    role: str,
-    db: Session = Depends(get_db),
-    settings: Settings = Depends(Settings.from_env),
-):
-    role_key = (role or "").strip().lower()
-    role_title = WEB_APP_ROLES.get(role_key)
-    if not role_title:
-        raise HTTPException(status_code=404, detail="Not found")
-
-    # Autorizace podle zařízení a přiřazených rolí (pokud nějaké existují).
-    device_id = request.headers.get("x-device-id") or request.cookies.get("hotel_device_id")
-    device: Device | None = None
-    if device_id:
-        device = db.scalar(select(Device).where(Device.device_id == device_id.strip()))
-    # Zpětná kompatibilita: pokud zařízení nemá žádné role, necháváme přístup otevřený.
-    if device and device.roles and role_key not in device.roles:
-        raise HTTPException(status_code=403, detail="ROLE_NOT_ALLOWED_FOR_DEVICE")
-
-    device_class = detect_client_kind(request)
-    tmpl = _template_for("web_app.html", device_class)
-    return templates.TemplateResponse(
-        tmpl,
-        {
-            **_base_ctx(request, settings=settings, hide_shell=True),
-            "role_key": role_key,
-            "role_title": role_title,
-            "device_class": device_class,
-            "rooms": ROOMS_ALLOWED,
-        },
-    )
-
-
-@router.get("/app/maintanance")
-def web_app_role_typo(_: Request):
-    # Alias pro častý překlep, aby uživatelé skončili na správné stránce.
-    return _redirect("/app/maintenance")
-
-
-@router.get("/app/mantenance")
-def web_app_role_typo2(_: Request):
-    # Další alias překlepu; sjednoceno na /app/maintenance.
-    return _redirect("/app/maintenance")
-
-
-@router.get("/device/pending", response_class=HTMLResponse)
-def device_pending(request: Request, settings: Settings = Depends(Settings.from_env)):
-    # Public page for pending device activation (web fallback)
-    return templates.TemplateResponse(
-        "device_pending.html",
-        {
-            **_base_ctx(request, settings=settings, hide_shell=True, show_splash=True),
-            "pending_logo": "asc_logo.png",
-            "pending_brand": "KájovoHotel",
-            "pending_app": "Hotel App",
-        },
-    )
-
-
-@router.get("/download/app.apk")
-def download_apk(_: Request, settings: Settings = Depends(Settings.from_env)):
-    if not settings.public_apk_path:
-        raise HTTPException(status_code=404, detail="APK not configured")
-    return FileResponse(
-        path=settings.public_apk_path,
-        media_type="application/vnd.android.package-archive",
-        filename="app.apk",
-    )
+    return _redirect("/login")
 
 
 @router.get("/admin", response_class=HTMLResponse)
@@ -245,8 +244,6 @@ def admin_dashboard(
 ):
     if not admin_session_is_authenticated(request):
         return _redirect("/admin/login")
-
-    pending_devices = db.scalar(select(func.count()).select_from(Device).where(Device.status == DeviceStatus.PENDING))
 
     open_finds = db.scalar(
         select(func.count())
@@ -262,7 +259,6 @@ def admin_dashboard(
     )
 
     stats = {
-        "pending_devices": int(pending_devices or 0),
         "open_finds": int(open_finds or 0),
         "open_issues": int(open_issues or 0),
         "generated_at_human": _fmt_dt(_now()) or "",
@@ -292,21 +288,208 @@ def admin_login_page(request: Request):
     )
 
 
-@router.post("/admin/login")
-@rate_limit("admin_login")
-def admin_login_action(
+@router.get("/login", response_class=HTMLResponse)
+def portal_login_page(request: Request, db: Session = Depends(get_db), settings: Settings = Depends(Settings.from_env)):
+    if _portal_session_user(request, db, settings):
+        return _redirect("/portal")
+    flash = request.session.pop("flash", None) if hasattr(request, "session") else None
+    return templates.TemplateResponse(
+        "portal_login.html",
+        {
+            **_base_ctx(request, settings=settings, hide_shell=True, show_splash=True, flash=flash),
+        },
+    )
+
+
+@router.post("/login")
+@rate_limit("user_login")
+def portal_login_action(
     request: Request,
+    email: str = Form(""),
     password: str = Form(...),
     db: Session = Depends(get_db),
     settings: Settings = Depends(Settings.from_env),
 ):
     csrf_protect(request)
-    if not admin_login_check(password=password, db=db, settings=settings):
+    user = _authenticate_portal_user(email=email, password=password, db=db)
+    if not user:
+        return templates.TemplateResponse(
+            "portal_login.html",
+            {
+                **_base_ctx(request, settings=settings, hide_shell=True, show_splash=True),
+                "error": "Neplatné přihlašovací údaje",
+            },
+            status_code=401,
+        )
+    resp = _redirect("/portal")
+    set_user_session(resp, settings=settings, user_id=user.id, ttl_minutes=settings.user_session_ttl_minutes)
+    return resp
+
+
+@router.get("/login/forgot", response_class=HTMLResponse)
+def portal_forgot_page(request: Request, settings: Settings = Depends(Settings.from_env)):
+    flash = request.session.pop("flash", None) if hasattr(request, "session") else None
+    return templates.TemplateResponse(
+        "portal_forgot.html",
+        {
+            **_base_ctx(request, settings=settings, hide_shell=True, show_splash=True, flash=flash),
+        },
+    )
+
+
+@router.post("/login/forgot")
+@rate_limit("user_forgot")
+def portal_forgot_action(
+    request: Request,
+    email: str = Form(""),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(Settings.from_env),
+):
+    csrf_protect(request)
+    email_norm = (email or "").strip().lower()
+    user = db.scalar(select(PortalUser).where(PortalUser.email == email_norm, PortalUser.is_active.is_(True)))
+    if not user:
+        request.session["flash"] = {"type": "error", "message": "Uživatel nenalezen."}
+        return _redirect("/login/forgot")
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    expires_at = _now() + timedelta(hours=RESET_TOKEN_TTL_HOURS)
+
+    row = PortalUserResetToken(user_id=user.id, token_hash=token_hash, expires_at=expires_at)
+    db.add(row)
+    db.commit()
+
+    reset_url = f"{settings.public_base_url}/login/reset?token={raw_token}"
+    try:
+        cfg = _ensure_smtp_settings(db)
+        _send_reset_email(settings=settings, cfg=cfg, to_email=user.email, reset_url=reset_url)
+    except Exception as exc:
+        request.session["flash"] = {"type": "error", "message": f"Odeslání selhalo: {exc}"}
+        return _redirect("/login/forgot")
+
+    request.session["flash"] = {"type": "success", "message": "Odkaz byl odeslán na e-mail."}
+    return _redirect("/login")
+
+
+def _reset_token_row(raw_token: str, db: Session) -> PortalUserResetToken | None:
+    if not raw_token:
+        return None
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    row = db.scalar(
+        select(PortalUserResetToken).where(
+            PortalUserResetToken.token_hash == token_hash,
+            PortalUserResetToken.expires_at >= _now(),
+        )
+    )
+    return row
+
+
+@router.get("/login/reset", response_class=HTMLResponse)
+def portal_reset_page(
+    request: Request,
+    token: str,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(Settings.from_env),
+):
+    row = _reset_token_row(token, db)
+    if not row:
+        request.session["flash"] = {"type": "error", "message": "Neplatný nebo expirovaný odkaz."}
+        return _redirect("/login")
+    return templates.TemplateResponse(
+        "portal_reset.html",
+        {
+            **_base_ctx(request, settings=settings, hide_shell=True, show_splash=True),
+            "token": token,
+        },
+    )
+
+
+@router.post("/login/reset")
+def portal_reset_action(
+    request: Request,
+    token: str = Form(""),
+    password: str = Form(""),
+    password_confirm: str = Form(""),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(Settings.from_env),
+):
+    csrf_protect(request)
+    row = _reset_token_row(token, db)
+    if not row:
+        request.session["flash"] = {"type": "error", "message": "Neplatný nebo expirovaný odkaz."}
+        return _redirect("/login")
+
+    if password != password_confirm:
+        request.session["flash"] = {"type": "error", "message": "Hesla se neshodují."}
+        return _redirect(f"/login/reset?token={token}")
+
+    try:
+        new_hash = hash_password(password)
+    except Exception as exc:
+        request.session["flash"] = {"type": "error", "message": str(exc)}
+        return _redirect(f"/login/reset?token={token}")
+
+    user = db.get(PortalUser, row.user_id)
+    if not user or not user.is_active:
+        request.session["flash"] = {"type": "error", "message": "Uživatel nenalezen."}
+        return _redirect("/login")
+
+    user.password_hash = new_hash
+    db.add(user)
+    db.commit()
+
+    # Clean up all reset tokens for this user
+    db.execute(delete(PortalUserResetToken).where(PortalUserResetToken.user_id == user.id))
+    db.commit()
+
+    resp = _redirect("/portal")
+    set_user_session(resp, settings=settings, user_id=user.id, ttl_minutes=settings.user_session_ttl_minutes)
+    return resp
+
+
+@router.post("/logout")
+def portal_logout(request: Request, settings: Settings = Depends(Settings.from_env)):
+    csrf_protect(request)
+    resp = _redirect("/login")
+    clear_user_session(resp, settings=settings)
+    return resp
+
+
+@router.get("/portal", response_class=HTMLResponse)
+def portal_home(
+    request: Request,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(Settings.from_env),
+):
+    user = _portal_session_user(request, db, settings)
+    if not user:
+        return _redirect("/login")
+    return templates.TemplateResponse(
+        "portal_home.html",
+        {
+            **_base_ctx(request, settings=settings, active_nav="portal", hide_shell=True),
+            "user": {"name": user.name, "email": user.email, "role": PORTAL_ROLE_LABELS.get(user.role, user.role.value)},
+        },
+    )
+
+
+@router.post("/admin/login")
+@rate_limit("admin_login")
+def admin_login_action(
+    request: Request,
+    username: str = Form(""),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(Settings.from_env),
+):
+    csrf_protect(request)
+    if not admin_login_check(username=username, password=password, db=db, settings=settings):
         return templates.TemplateResponse(
             "admin_login.html",
             {
                 **_base_ctx(request, settings=settings, hide_shell=True, show_splash=True),
-                "error": "Neplatné heslo",
+                "error": "Neplatné přihlašovací údaje",
             },
             status_code=401,
         )
@@ -350,14 +533,14 @@ def admin_reports_issues(request: Request):
 def admin_reports_list(
     request: Request,
     db: Session = Depends(get_db),
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    room: Optional[int] = None,
-    date: Optional[str] = None,
+    category: str | None = None,
+    status: str | None = None,
+    room: int | None = None,
+    date: str | None = None,
     sort: str = "created_desc",
     page: int = 1,
     per_page: int = 25,
-    type: Optional[str] = None,
+    type: str | None = None,
 ):
     admin_require(request)
 
@@ -388,7 +571,7 @@ def admin_reports_list(
 
     if date:
         day = _parse_date_filter(date)
-        start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+        start = datetime(day.year, day.month, day.day, tzinfo=UTC)
         end = start + timedelta(days=1)
         stmt = stmt.where(Report.created_at >= start).where(Report.created_at < end)
 
@@ -495,11 +678,7 @@ def admin_report_detail(
         select(ReportHistory).where(ReportHistory.report_id == report_id).order_by(ReportHistory.created_at.desc())
     ).all()
 
-    created_by = (
-        report.created_by_device.device_id  # type: ignore[union-attr]
-        if getattr(report, "created_by_device", None) is not None
-        else str(report.created_by_device_id)
-    )
+    created_by = report.created_by_device.device_id
 
     report_vm = {
         "id": report.id,
@@ -644,205 +823,190 @@ def admin_report_delete(
     return _redirect("/admin/reports")
 
 
-@router.get("/admin/devices", response_class=HTMLResponse)
-def admin_devices(
+@router.get("/admin/users", response_class=HTMLResponse)
+def admin_users_page(
     request: Request,
     db: Session = Depends(get_db),
+    settings: Settings = Depends(Settings.from_env),
 ):
-    admin_require(request)
+    if not admin_session_is_authenticated(request):
+        return _redirect("/admin/login")
 
-    def _serialize_roles(d: Device) -> list[str]:
-        try:
-            roles = getattr(d, "roles", set()) or set()
-        except Exception:
-            return []
-        return sorted(roles)
-
-    pending_raw = db.scalars(
-        select(Device).where(Device.status == DeviceStatus.PENDING).order_by(Device.created_at.desc())
-    ).all()
-    active_raw = db.scalars(
-        select(Device).where(Device.status == DeviceStatus.ACTIVE).order_by(Device.created_at.desc())
-    ).all()
-    revoked_raw = db.scalars(
-        select(Device).where(Device.status == DeviceStatus.REVOKED).order_by(Device.created_at.desc())
-    ).all()
-
-    pending_devices = [
-        {
-            "id": d.id,
-            "device_id": d.device_id,
-            "created_at_human": _fmt_dt(d.created_at) or "",
-            "device_label": d.display_name,
-            "device_info_summary": d.public_key_alg or "",
-            "status": "PENDING",
-            "roles": _serialize_roles(d),
-        }
-        for d in pending_raw
+    users = db.scalars(select(PortalUser).order_by(PortalUser.name.asc())).all()
+    role_options = [
+        {"value": role.value, "label": PORTAL_ROLE_LABELS.get(role, role.value)}
+        for role in PortalUserRole
     ]
-    active_devices = [
+    user_rows = [
         {
-            "id": d.id,
-            "device_id": d.device_id,
-            "activated_at_human": _fmt_dt(d.activated_at) or "",
-            "last_seen_at_human": _fmt_dt(d.last_seen_at) if d.last_seen_at else None,
-            "device_label": d.display_name,
-            "device_info_summary": d.public_key_alg or "",
-            "status": "ACTIVE",
-            "roles": _serialize_roles(d),
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role_label": PORTAL_ROLE_LABELS.get(u.role, u.role.value),
+            "has_password": bool(u.password_hash),
         }
-        for d in active_raw
-    ]
-    revoked_devices = [
-        {
-            "id": d.id,
-            "device_id": d.device_id,
-            "revoked_at_human": _fmt_dt(d.revoked_at) or _fmt_dt(d.updated_at) or "",
-            "last_seen_at_human": _fmt_dt(d.last_seen_at) if d.last_seen_at else None,
-            "device_label": d.display_name,
-            "device_info_summary": d.public_key_alg or "",
-            "status": "REVOKED",
-            "roles": _serialize_roles(d),
-        }
-        for d in revoked_raw
+        for u in users
     ]
 
-    all_devices = pending_devices + active_devices + revoked_devices
-
+    flash = request.session.pop("flash", None) if hasattr(request, "session") else None
     return templates.TemplateResponse(
-        "admin_devices.html",
+        "admin_users.html",
         {
-            **_base_ctx(request, active_nav="devices", hide_shell=True, show_splash=True),
-            "pending_devices": pending_devices,
-            "active_devices": active_devices,
-            "revoked_devices": revoked_devices,
-            "all_devices": all_devices,
-            "web_app_roles": WEB_APP_ROLES,
+            **_base_ctx(request, settings=settings, active_nav="users", flash=flash),
+            "role_options": role_options,
+            "users": user_rows,
+            "csrf_token": csrf_token_ensure(request),
         },
     )
 
 
-@router.get("/admin/settings/devices")
-def admin_devices_alias(request: Request):
+@router.post("/admin/users/create")
+def admin_users_create(
+    request: Request,
+    name: str = Form(""),
+    email: str = Form(""),
+    role: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    try:
+        admin_require(request)
+        csrf_protect(request)
+    except AdminAuthError:
+        return _redirect("/admin/login")
+
+    name = (name or "").strip()
+    email_norm = (email or "").strip().lower()
+    if not name or not email_norm:
+        request.session["flash"] = {"type": "error", "message": "Jméno a e-mail jsou povinné."}
+        return _redirect("/admin/users")
+    if email_norm == ADMIN_USERNAME:
+        request.session["flash"] = {"type": "error", "message": "Tento e-mail je vyhrazen pro admin účet."}
+        return _redirect("/admin/users")
+
+    try:
+        role_enum = PortalUserRole(role)
+    except Exception:
+        request.session["flash"] = {"type": "error", "message": "Neplatný druh pohledu."}
+        return _redirect("/admin/users")
+
+    exists = db.scalar(select(PortalUser).where(PortalUser.email == email_norm))
+    if exists:
+        request.session["flash"] = {"type": "error", "message": "Uživatel s tímto e‑mailem už existuje."}
+        return _redirect("/admin/users")
+
+    user = PortalUser(name=name, email=email_norm, role=role_enum, password_hash=None)
+    db.add(user)
+    db.commit()
+
+    request.session["flash"] = {"type": "success", "message": "Uživatel vytvořen."}
+    return _redirect("/admin/users")
+
+
+@router.post("/admin/users/{user_id}/send-reset")
+def admin_users_send_reset(
+    request: Request,
+    user_id: int,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(Settings.from_env),
+):
+    try:
+        admin_require(request)
+        csrf_protect(request)
+    except AdminAuthError:
+        return _redirect("/admin/login")
+
+    user = db.get(PortalUser, int(user_id))
+    if not user or not user.is_active:
+        request.session["flash"] = {"type": "error", "message": "Uživatel nenalezen."}
+        return _redirect("/admin/users")
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    expires_at = _now() + timedelta(hours=RESET_TOKEN_TTL_HOURS)
+
+    row = PortalUserResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+    db.add(row)
+    db.commit()
+
+    reset_url = f"{settings.public_base_url}/login/reset?token={raw_token}"
+    try:
+        cfg = _ensure_smtp_settings(db)
+        _send_reset_email(settings=settings, cfg=cfg, to_email=user.email, reset_url=reset_url)
+    except Exception as exc:
+        request.session["flash"] = {"type": "error", "message": f"Odeslání selhalo: {exc}"}
+        return _redirect("/admin/users")
+
+    request.session["flash"] = {"type": "success", "message": "Odkaz odeslán."}
+    return _redirect("/admin/users")
+
+
+@router.get("/admin/settings", response_class=HTMLResponse)
+def admin_settings_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(Settings.from_env),
+):
     if not admin_session_is_authenticated(request):
         return _redirect("/admin/login")
-    return _redirect("/admin/devices")
+    cfg = _ensure_smtp_settings(db)
+    flash = request.session.pop("flash", None) if hasattr(request, "session") else None
+    return templates.TemplateResponse(
+        "admin_settings.html",
+        {
+            **_base_ctx(request, settings=settings, active_nav="settings", flash=flash),
+            "smtp": cfg,
+            "csrf_token": csrf_token_ensure(request),
+        },
+    )
 
 
-@router.post("/admin/devices/{device_id}/activate")
-@rate_limit("admin_device_activate")
-def admin_device_activate(
+@router.post("/admin/settings/smtp")
+def admin_settings_smtp_save(
     request: Request,
-    device_id: int,
-    roles: list[str] = Form(default=[]),
+    host: str = Form(""),
+    port: int = Form(0),
+    security: str = Form("SSL"),
+    username: str = Form(""),
+    password: str = Form(""),
+    from_email: str = Form(""),
+    from_name: str = Form(""),
     db: Session = Depends(get_db),
+    settings: Settings = Depends(Settings.from_env),
 ):
-    admin_require(request)
-    csrf_protect(request)
+    try:
+        admin_require(request)
+        csrf_protect(request)
+    except AdminAuthError:
+        return _redirect("/admin/login")
 
-    device = db.get(Device, device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Not found")
+    cfg = _ensure_smtp_settings(db)
+    cfg.host = (host or "").strip() or None
+    cfg.port = int(port or 0) or None
+    cfg.security = (security or "SSL").strip().upper()
+    cfg.username = (username or "").strip() or None
+    cfg.from_email = (from_email or "").strip() or None
+    cfg.from_name = (from_name or "").strip() or None
 
-    if device.status == DeviceStatus.PENDING:
-        allowed_role_keys = set(WEB_APP_ROLES.keys())
-        selected_roles = {r.strip().lower() for r in roles if r.strip().lower() in allowed_role_keys}
-        if selected_roles:
-            device.roles = selected_roles
+    if password:
+        if not settings.crypto_secret:
+            request.session["flash"] = {
+                "type": "error",
+                "message": "CRYPTO_SECRET není nastaven, heslo nelze uložit šifrovaně.",
+            }
+            return _redirect("/admin/settings")
+        crypto = Crypto.from_secret(settings.crypto_secret)
+        cfg.password_enc = crypto.encrypt_str(password)
 
-        device.status = DeviceStatus.ACTIVE
-        device.activated_at = _now()
-        db.commit()
-
-    return _redirect("/admin/devices")
-
-
-@router.post("/admin/devices/{device_id}/roles")
-@rate_limit("admin_device_roles")
-def admin_device_roles(
-    request: Request,
-    device_id: int,
-    roles: list[str] = Form(default=[]),
-    db: Session = Depends(get_db),
-):
-    """Aktualizace rolí u aktivního zařízení."""
-    admin_require(request)
-    csrf_protect(request)
-
-    device = db.get(Device, device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Not found")
-
-    if device.status != DeviceStatus.ACTIVE:
-        return _redirect("/admin/devices")
-
-    allowed_role_keys = set(WEB_APP_ROLES.keys())
-    selected_roles = {r.strip().lower() for r in roles if r.strip().lower() in allowed_role_keys}
-    device.roles = selected_roles
-
-    db.add(device)
+    cfg.updated_at = _now()
+    db.add(cfg)
     db.commit()
-    return _redirect("/admin/devices")
 
-
-@router.post("/admin/devices/{device_id}/revoke")
-@rate_limit("admin_device_revoke")
-def admin_device_revoke(
-    request: Request,
-    device_id: int,
-    db: Session = Depends(get_db),
-):
-    admin_require(request)
-    csrf_protect(request)
-
-    device = db.get(Device, device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Not found")
-
-    if device.status != DeviceStatus.REVOKED:
-        device.status = DeviceStatus.REVOKED
-        device.revoked_at = _now()
-        db.commit()
-
-    return _redirect("/admin/devices")
-
-
-@router.post("/admin/devices/{device_id}/delete")
-@rate_limit("admin_device_delete")
-def admin_device_delete(
-    request: Request,
-    device_id: int,
-    db: Session = Depends(get_db),
-):
-    admin_require(request)
-    csrf_protect(request)
-
-    device = db.get(Device, device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Not found")
-
-    db.delete(device)
-    db.commit()
-    return _redirect("/admin/devices")
-
-
-@router.post("/admin/devices/delete-pending")
-@rate_limit("admin_device_delete_all_pending")
-def admin_devices_delete_pending(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    """Hromadné smazání všech čekajících instancí."""
-    admin_require(request)
-    csrf_protect(request)
-
-    pending = db.scalars(select(Device).where(Device.status == DeviceStatus.PENDING)).all()
-    if pending:
-        for d in pending:
-            db.delete(d)
-        db.commit()
-
-    return _redirect("/admin/devices")
+    request.session["flash"] = {"type": "success", "message": "Uloženo."}
+    return _redirect("/admin/settings")
 
 
 @router.get("/admin/profile", response_class=HTMLResponse)
@@ -949,12 +1113,11 @@ def admin_media(
                 thumb.parent.mkdir(parents=True, exist_ok=True)
                 with Image.open(orig) as img:
                     img.load()
-                    if img.mode not in ("RGB", "L"):
-                        img = img.convert("RGB")
-                    elif img.mode == "L":
-                        img = img.convert("RGB")
-                    img.thumbnail((480, 480), Image.Resampling.LANCZOS)
-                    img.save(thumb, format="JPEG", quality=75, optimize=True, progressive=True)
+                    work_img: Image.Image = img
+                    if work_img.mode != "RGB":
+                        work_img = work_img.convert("RGB")
+                    work_img.thumbnail((480, 480), Image.Resampling.LANCZOS)
+                    work_img.save(thumb, format="JPEG", quality=75, optimize=True, progressive=True)
                 path = thumb
             except Exception:
                 # fallback na původní 404 pokud generování selže
