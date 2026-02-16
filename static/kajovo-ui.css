@@ -251,3 +251,55 @@ body{
 /* Helpers */
 .kajovo-btn--block{ width: 100%; }
 .kajovo-mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+
+/* Floating corner logo visible on every viewport */
+.kajovo-floating-logo{
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.94);
+  box-shadow: 0 10px 24px rgba(2,6,23,0.18);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index: 10010;
+  backdrop-filter: blur(4px);
+}
+.kajovo-floating-logo img{
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+.kajovo-floating-logo:hover{ transform: translateY(-1px); }
+
+/* Desktop / tablet / mobile refinements */
+@media (min-width: 1200px){
+  .kajovo-container{ padding: 26px 22px 54px; }
+  .kajovo-pagehead h1{ font-size: 26px; }
+}
+@media (min-width: 768px) and (max-width: 1199px){
+  .kajovo-container{ padding: 18px 14px 48px; }
+  .kajovo-brand-rail__product{ font-size: 12px; }
+  .kajovo-product-wordmark{ max-width: 210px; }
+}
+@media (max-width: 767px){
+  :root{ --kajovo-rail-h: 60px; }
+  .kajovo-container{ padding: 14px 10px 76px; }
+  .kajovo-card{ padding: 14px; }
+  .kajovo-pagehead h1{ font-size: 20px; }
+  .kajovo-brand-rail__inner{ padding: 0 10px; }
+  .kajovo-product-wordmark{ max-width: 150px; height: 18px; }
+  .kajovo-floating-logo{
+    right: 10px;
+    bottom: 10px;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+  .kajovo-floating-logo img{ width: 22px; height: 22px; }
+}
