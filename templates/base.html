@@ -33,16 +33,21 @@
   <body class="antialiased hotel-page-bg">
     {% set with_shell = not hide_shell %}
     {% set use_sidebar = use_sidebar|default(false) %}
+    {% set _body_content %}{% block body_content %}{% endblock %}{% endset %}
 
     {# Always-visible brand rail with logo #}
     {% include "partials/brand_rail.html" %}
+
+    <a href="/" class="kajovo-floating-logo" aria-label="KájovoHotel">
+      <img src="{{ url_for('static', path='LOGO/icon.svg') }}" alt="KájovoHotel" loading="lazy" decoding="async" />
+    </a>
 
     {# Mandatory progress dialog on every page entry #}
     <div id="hotelSplash" class="hotel-splash" aria-live="polite" aria-label="Načítání">
       <div class="hotel-splash__card" role="dialog" aria-modal="true">
         <img
           class="hotel-splash__logo"
-          src="{{ url_for('static', path='brand/logo.png') }}"
+          src="{{ url_for('static', path='LOGO/logo.svg') }}"
           alt="KájovoHotel"
           loading="eager"
           decoding="async"
@@ -96,7 +101,7 @@
               <div class="h-4"></div>
             {% endif %}
 
-            {% block content %}{% endblock %}
+            {{ _body_content }}
           </main>
         </div>
       </div>
@@ -118,7 +123,7 @@
           <div class="h-4"></div>
         {% endif %}
 
-        {% block content %}{% endblock %}
+        {{ _body_content }}
       </div>
     {% endif %}
   </body>
