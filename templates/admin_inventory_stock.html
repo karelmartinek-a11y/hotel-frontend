@@ -1,26 +1,23 @@
 {% extends "base.html" %}
 
-{% set use_sidebar = true %}
+{% set use_sidebar = show_admin_sidebar|default(true) %}
 
 {% block sidebar %}
-  {% include "admin_sidebar.html" %}
+  {% if show_admin_sidebar %}
+    {% include "admin_sidebar.html" %}
+  {% endif %}
 {% endblock %}
 {% set inventory_base_path = inventory_base_path|default('/admin/inventory') %}
 {% set readonly = readonly|default(false) %}
-{% set show_admin_sidebar = show_admin_sidebar|default(true) %}
 {% set back_url = back_url|default('') %}
 
 {% block title %}KájovoHotel — Skladové hospodářství (Stav skladu){% endblock %}
 
 {% block head_extra %}{% endblock %}
 
-{% block content %}
+{% block body_content %}
 <div class="page">
   <div class="container admin-shell">
-    {% if show_admin_sidebar %}
-      {% include "admin_sidebar.html" %}
-    {% endif %}
-
     <main class="admin-main">
       <div class="stack" style="gap:14px;">
         {% if back_url %}
