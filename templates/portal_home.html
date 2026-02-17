@@ -1,59 +1,21 @@
 {% extends "base.html" %}
-
-{% block title %}Portál — KájovoHotel{% endblock %}
-
+{% block title %}Portál domů{% endblock %}
 {% block body_content %}
-<section class="mx-auto max-w-5xl px-4 py-10">
-  <div class="kajovo-surface kajovo-card portal-hero">
-    <header class="portal-hero__header">
-      <img src="{{ url_for('static', path='LOGO/assets/svg/logo-horizontal.svg') }}" alt="KájovoHotel" class="portal-hero__logo" draggable="false" />
-      <div>
-        <h1 style="margin:0;font-size:28px;font-weight:900;">Portál recepce a provozu</h1>
-        <p class="kajovo-subtitle" style="margin:6px 0 0;">Přihlášen: {{ user.name }} • {{ user.email }} • role: {{ user.role }}</p>
-      </div>
-      <form method="post" action="/logout" style="margin-left:auto;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-        <button type="submit" class="kajovo-btn kajovo-btn--secondary">Odhlásit</button>
-      </form>
-    </header>
-
-    <div class="grid-2">
-      <article class="card pad">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-          <h2 style="margin:0;font-size:18px;font-weight:850;">Ztráty a nálezy</h2>
-          <span class="badge active"><span class="b-dot"></span> Aktivní</span>
-        </div>
-        <p class="mini" style="margin:8px 0 12px;">Evidence nálezů a vrácení hostům s historií změn.</p>
-        <a href="/admin/reports/findings" class="kajovo-btn kajovo-btn--primary">Otevřít modul</a>
-      </article>
-
-      <article class="card pad">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-          <h2 style="margin:0;font-size:18px;font-weight:850;">Závady a údržba</h2>
-          <span class="badge"><span class="b-dot"></span> Servis</span>
-        </div>
-        <p class="mini" style="margin:8px 0 12px;">Fronta závad, priorizace a uzavírání úkolů údržby.</p>
-        <a href="/admin/reports/issues" class="kajovo-btn kajovo-btn--primary">Otevřít modul</a>
-      </article>
-
-      <article class="card pad">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-          <h2 style="margin:0;font-size:18px;font-weight:850;">Snídaně</h2>
-          <span class="badge">IMAP</span>
-        </div>
-        <p class="mini" style="margin:8px 0 12px;">Kontrola importu přehledů stravy a diagnostika načítání.</p>
-        <a href="/admin/breakfast" class="kajovo-btn kajovo-btn--secondary">Přejít</a>
-      </article>
-
-      <article class="card pad">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-          <h2 style="margin:0;font-size:18px;font-weight:850;">Skladové hospodářství</h2>
-          <span class="badge">Sklad</span>
-        </div>
-        <p class="mini" style="margin:8px 0 12px;">Správa surovin, stavu skladu i pohybových karet.</p>
-        <a href="/admin/inventory/ingredients" class="kajovo-btn kajovo-btn--secondary">Přejít</a>
-      </article>
+<section class="card">
+  <div class="card-head"><strong>Vítejte, {{ user.name }}</strong></div>
+  <div class="card-body stack">
+    <div class="panel">
+      <div><strong>E-mail:</strong> {{ user.email }}</div>
+      <div><strong>Role:</strong> {{ user.role }}</div>
     </div>
+    <div class="grid two">
+      <a class="panel" href="/portal/report/find" style="text-decoration:none;color:inherit;"><h3 style="margin-top:0;">Nahlásit nález</h3><p class="hint">Evidence nalezených předmětů hostů a interní předání.</p></a>
+      <a class="panel" href="/portal/report/issue" style="text-decoration:none;color:inherit;"><h3 style="margin-top:0;">Nahlásit závadu</h3><p class="hint">Technické incidenty, škody a provozní odchylky.</p></a>
+    </div>
+    <form method="post" action="/logout">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <button class="btn secondary" type="submit">Odhlásit se</button>
+    </form>
   </div>
 </section>
 {% endblock %}

@@ -1,93 +1,46 @@
 {% extends "base.html" %}
-
 {% set use_sidebar = true %}
-
-{% block sidebar %}
-  {% include "admin_sidebar.html" %}
-{% endblock %}
-
-{% block title %}KájovoHotel — Uživatelé{% endblock %}
-
-{% block head_extra %}{% endblock %}
-
+{% block title %}Správa uživatelů{% endblock %}
+{% block sidebar %}{% include "admin_sidebar.html" %}{% endblock %}
 {% block body_content %}
-<div class="page">
-  <div class="container admin-shell">
-    <main class="admin-main">
-      <div class="stack" style="gap:14px;">
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <div style="font-size:20px;font-weight:850;">Uživatelé</div>
-          <div style="color:var(--muted);">Správa přístupů do webové aplikace.</div>
-        </div>
-
-        <section class="card pad">
-          <div style="font-weight:850;">Nový uživatel</div>
-          <form method="post" action="/admin/users/create" class="rowline" style="margin-top:10px;" autocomplete="off">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-            <div style="flex:1;min-width:180px;">
-              <div class="label">Jméno</div>
-              <input class="input" name="name" placeholder="Např. Jana Nováková" required />
-            </div>
-            <div style="min-width:160px;">
-              <div class="label">Druh pohledu</div>
-              <select class="input" name="role">
-                {% for r in role_options %}
-                  <option value="{{ r.value }}">{{ r.label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div style="min-width:220px;">
-              <div class="label">E-mail</div>
-              <input class="input" name="email" type="email" placeholder="name@hotelchodovasc.cz" required />
-            </div>
-            <div style="min-width:120px;">
-              <button class="btn solid" type="submit" style="margin-top:22px;">Přidat</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="card pad">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-            <div style="font-weight:850;">Seznam uživatelů</div>
-            <div class="mini">Heslo se nastavuje přes e‑mailový odkaz s platností 24 hodin.</div>
-          </div>
-          <div style="overflow:auto;margin-top:12px;">
-            <table>
-              <thead>
-                <tr>
-                  <th>Jméno</th>
-                  <th>E-mail</th>
-                  <th>Role</th>
-                  <th>Heslo</th>
-                  <th style="width:180px;">Akce</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for u in users %}
-                  <tr>
-                    <td style="font-weight:700;">{{ u.name }}</td>
-                    <td>{{ u.email }}</td>
-                    <td>{{ u.role_label }}</td>
-                    <td class="mini">{{ "nastaveno" if u.has_password else "nenastaveno" }}</td>
-                    <td>
-                      <form method="post" action="/admin/users/{{ u.id }}/send-reset" style="margin:0;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-                        <button class="btn" type="submit">Poslat link</button>
-                      </form>
-                    </td>
-                  </tr>
-                {% endfor %}
-                {% if users|length == 0 %}
-                  <tr>
-                    <td colspan="5" class="mini">Zatím nejsou žádní uživatelé.</td>
-                  </tr>
-                {% endif %}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </main>
+<section class="card">
+  <div class="card-head"><strong>Uživatelé portálu</strong></div>
+  <div class="card-body">
+    <table>
+      <thead><tr><th>ID</th><th>Jméno</th><th>E-mail</th><th>Role</th><th>Heslo</th><th>Akce</th></tr></thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>{{ user.id }}</td>
+          <td>{{ user.name }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.role_label }}</td>
+          <td><span class="badge {{ 'ok' if user.has_password else 'bad' }}">{{ 'Nastaveno' if user.has_password else 'Chybí' }}</span></td>
+          <td>
+            <form method="post" action="/admin/users/{{ user.id }}/send-reset">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+              <button class="btn secondary" type="submit">Poslat reset odkaz</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">Zatím nejsou registrováni žádní uživatelé.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
-</div>
+</section>
+
+<section class="card">
+  <div class="card-head"><strong>Vytvoření nového uživatele</strong></div>
+  <div class="card-body">
+    <form method="post" action="/admin/users/create" class="grid three">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <div class="field"><label for="name">Jméno</label><input id="name" name="name" required /></div>
+      <div class="field"><label for="email">E-mail</label><input id="email" type="email" name="email" required /></div>
+      <div class="field"><label for="role">Role</label><select id="role" name="role">{% for row in role_options %}<option value="{{ row.value }}">{{ row.label }}</option>{% endfor %}</select></div>
+      <div><button class="btn primary" type="submit">Vytvořit účet</button></div>
+    </form>
+  </div>
+</section>
 {% endblock %}

@@ -1,31 +1,14 @@
 {% extends "base.html" %}
-
-{% block title %}Portál — obnova hesla{% endblock %}
-
+{% block title %}Obnova hesla{% endblock %}
 {% block body_content %}
-<section class="mx-auto max-w-md px-4 py-12">
-  <div class="kajovo-surface kajovo-card" style="display:grid;gap:16px;">
-    <header>
-      <h1 style="margin:0;font-size:24px;font-weight:900;">Obnova hesla</h1>
-      <p class="kajovo-subtitle">Zadejte e-mail a pošleme vám odkaz pro nastavení nového hesla.</p>
-    </header>
-
-    {% if flash_error %}
-      <div class="kajovo-alert kajovo-alert--critical">{{ flash_error }}</div>
-    {% endif %}
-    {% if flash_success %}
-      <div class="kajovo-alert kajovo-alert--success">{{ flash_success }}</div>
-    {% endif %}
-
-    <form method="post" action="/login/forgot" class="kajovo-form">
+<section class="card" style="max-width:560px;margin:0 auto;">
+  <div class="card-head"><strong>Reset přístupu</strong></div>
+  <div class="card-body stack">
+    <p class="hint" style="margin:0;">Po zadání e-mailu odešleme odkaz pro nastavení nového hesla. Odkaz má omezenou platnost.</p>
+    <form method="post" action="/login/forgot" class="stack">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-      <div class="kajovo-field">
-        <label for="email">E-mail</label>
-        <input id="email" name="email" type="email" required autocomplete="email" placeholder="uzivatel@hotel.hcasc.cz" />
-      </div>
-      <div style="display:flex;justify-content:flex-end;">
-        <button type="submit" class="kajovo-btn kajovo-btn--primary">Odeslat odkaz</button>
-      </div>
+      <div class="field"><label>E-mail účtu</label><input type="email" name="email" required /></div>
+      <button class="btn primary" type="submit">Odeslat reset odkaz</button>
     </form>
   </div>
 </section>

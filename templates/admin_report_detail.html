@@ -1,165 +1,94 @@
 {% extends "base.html" %}
-
 {% set use_sidebar = true %}
-
-{% block sidebar %}
-  {% include "admin_sidebar.html" %}
-{% endblock %}
-
-{% block title %}KájovoHotel — Detail záznamu{% endblock %}
-
-{% block head_extra %}{% endblock %}
-
+{% block title %}Detail hlášení{% endblock %}
+{% block sidebar %}{% include "admin_sidebar.html" %}{% endblock %}
 {% block body_content %}
-<div class="page">
-  <div class="container admin-shell">
-    <main class="admin-main">
-      <div class="stack" style="gap:14px;">
-        <div class="row" style="justify-content:space-between;align-items:flex-end;flex-wrap:wrap;">
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <div style="font-size:20px;font-weight:850;">Detail záznamu</div>
-            <div style="color:var(--muted);">Pokoj {{ report.room }} • ID {{ report.id }}</div>
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
-            <a href="/admin/reports" class="btn">Zpět na seznam</a>
-          </div>
-        </div>
-
-        <div class="card pad" style="display:grid;gap:14px;">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            {% if report.type == "FIND" %}
-              <span class="badge" style="background:#e0f2fe;border-color:#bae6fd;">Ztráty a nálezy</span>
-            {% else %}
-              <span class="badge" style="background:#fef3c7;border-color:#fde68a;">Závady</span>
-            {% endif %}
-            {% if report.status == "OPEN" %}
-              <span class="badge active"><span class="b-dot" aria-hidden="true"></span><span>OPEN</span></span>
-            {% else %}
-              <span class="badge"><span class="b-dot" aria-hidden="true"></span><span>DONE</span></span>
-            {% endif %}
-          </div>
-
-          <div style="display:grid;gap:8px;">
-            <div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:13px;">
-              <div><strong>Vytvořeno:</strong> {{ report.created_at_human }}</div>
-              <div><strong>Vyřízeno:</strong> {{ report.done_at_human or "—" }}</div>
-              <div><strong>Doba:</strong> {% if report.duration_hours is not none %}{{ '%.1f'|format(report.duration_hours) }} h{% else %}—{% endif %}</div>
-              <div><strong>Zdroj:</strong> web portál</div>
-            </div>
-            <div class="card pad" style="background:#f8fafc;border-color:var(--line);">
-              <div style="font-size:13px;color:var(--muted);">Popis</div>
-              <div style="margin-top:6px;font-size:15px;">{{ report.description or "(bez popisu)" }}</div>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            {% if report.status == "OPEN" %}
-            <form method="post" action="/admin/reports/{{ report.id }}/done">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-              <button type="submit" class="btn solid">Vyřízeno</button>
-            </form>
-            {% else %}
-            <form method="post" action="/admin/reports/{{ report.id }}/reopen">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-              <button type="submit" class="btn">Reopen</button>
-            </form>
-            {% endif %}
-            <form method="post" action="/admin/reports/{{ report.id }}/delete" onsubmit="return confirm('Opravdu smazat tento záznam včetně fotek?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-              <button type="submit" class="btn danger">Smazat</button>
-            </form>
-          </div>
-
-          <div class="card pad" style="background:#f8fafc;border-color:var(--line);display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
-            <div>
-              <div class="label">ID</div>
-              <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:13px;">{{ report.id }}</div>
-            </div>
-            <div>
-              <div class="label">Fotky</div>
-              <div style="font-weight:700;">{{ report.photo_count }}</div>
-            </div>
-            {% if report.done_at_human %}
-            <div>
-              <div class="label">Vyřízeno</div>
-              <div>{{ report.done_at_human }}</div>
-            </div>
-            {% endif %}
-            {% if report.duration_hours is not none %}
-            <div>
-              <div class="label">Doba vyřízení</div>
-              <div>{{ '%.1f'|format(report.duration_hours) }} h</div>
-            </div>
-            {% endif %}
-            <div>
-              <div class="label">Vyřídil</div>
-              <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:13px;">{{ report.done_by_device_id or '—' }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card pad" style="display:grid;gap:12px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-            <div style="font-weight:800;">Fotky</div>
-            <div style="color:var(--muted);font-size:13px;">Kliknutím otevřete</div>
-          </div>
-          {% if photos and photos|length > 0 %}
-            <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
-              {% for p in photos %}
-                <a href="/admin/media/{{ p.id }}/original" target="_blank" rel="noopener" class="card pad" style="padding:8px;">
-                  <div style="aspect-ratio:1/1;background:#f8fafc;border-radius:12px;overflow:hidden;border:1px solid var(--line);display:grid;place-items:center;">
-                    <img src="/admin/media/{{ p.id }}/thumb" alt="Foto" style="width:100%;height:100%;object-fit:cover;" loading="lazy" />
-                  </div>
-                  <div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;">
-                    <span class="font-mono">{{ loop.index }} / {{ photos|length }}</span>
-                    <span class="font-mono">{{ p.size_kb }} KB</span>
-                  </div>
-                </a>
-              {% endfor %}
-            </div>
-            <div style="font-size:12px;color:var(--muted);">Originály a miniatury jsou dostupné pouze po přihlášení (admin session).</div>
-          {% else %}
-            <div style="padding:14px;color:var(--muted);border:1px solid var(--line);border-radius:12px;">Tento záznam nemá žádné fotky.</div>
-          {% endif %}
-        </div>
-
-        <div class="card pad" style="display:grid;gap:12px;">
-          <div style="font-weight:800;">Historie (audit)</div>
-          {% if history and history|length > 0 %}
-            <div style="display:grid;gap:10px;">
-              {% for h in history %}
-              <div class="card pad" style="padding:10px;border-color:var(--line);">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-                  <div style="font-weight:700;">{{ h.action_label }}</div>
-                  <div style="font-size:12px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;">{{ h.at_human }}</div>
-                </div>
-                <div style="margin-top:6px;font-size:12px;color:var(--muted);">
-                  {% if h.by_admin %}
-                    admin
-                  {% else %}
-                    uživatel
-                  {% endif %}
-                  {% if h.note %}
-                    <span style="margin:0 8px;color:var(--muted);">|</span>
-                    {{ h.note }}
-                  {% endif %}
-                </div>
-              </div>
-              {% endfor %}
-            </div>
-          {% else %}
-            <div style="padding:12px;color:var(--muted);border:1px solid var(--line);border-radius:12px;">Zatím bez historie.</div>
-          {% endif %}
-        </div>
-
-        <div class="card pad">
-          <div style="font-weight:700;">Poznámka</div>
-          <div style="margin-top:6px;color:var(--muted);font-size:13px;">
-            Fotografie jsou na serveru uložené na disku a nejsou veřejně přístupné. Admin rozhraní je zobrazuje přes chráněné endpointy.
-          </div>
-        </div>
-      </div>
-    </main>
+<section class="card">
+  <div class="card-head" style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+    <strong>Hlášení #{{ report.id }}</strong>
+    <span class="badge {{ 'ok' if report.status == 'DONE' else '' }}">{{ report.status }}</span>
   </div>
-</div>
+  <div class="card-body stack">
+    <div class="grid two">
+      <div class="panel">
+        <div><strong>Typ:</strong> {{ report.type }}</div>
+        <div><strong>Pokoj:</strong> {{ report.room }}</div>
+        <div><strong>Vytvořeno:</strong> {{ report.created_at_human }}</div>
+        <div><strong>Zařízení:</strong> {{ report.created_by_device_id }}</div>
+      </div>
+      <div class="panel">
+        <div><strong>Foto:</strong> {{ report.photo_count }}</div>
+        <div><strong>Vyřešeno:</strong> {{ report.done_at_human or '—' }}</div>
+        <div><strong>Vyřídil:</strong> {{ report.done_by_device_id or 'admin' if report.done_at_human else '—' }}</div>
+        <div><strong>Doba řešení:</strong> {{ report.duration_hours ~ ' h' if report.duration_hours is not none else '—' }}</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="font-weight:700; margin-bottom:6px;">Popis hlášení</div>
+      <div style="white-space:pre-wrap; line-height:1.5;">{{ report.description }}</div>
+    </div>
+
+    <div class="grid two">
+      <form method="post" action="/admin/reports/{{ report.id }}/done" class="panel">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div style="font-weight:700; margin-bottom:8px;">Uzavření reportu</div>
+        <p class="hint">Použijte, pokud je incident vyřešen a není nutná další akce.</p>
+        <button class="btn primary" type="submit">Označit jako DONE</button>
+      </form>
+      <form method="post" action="/admin/reports/{{ report.id }}/reopen" class="panel">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div style="font-weight:700; margin-bottom:8px;">Re-open reportu</div>
+        <p class="hint">Znovu otevře incident pro následné řešení.</p>
+        <button class="btn warn" type="submit">Znovu otevřít</button>
+      </form>
+    </div>
+
+    <form method="post" action="/admin/reports/{{ report.id }}/delete" class="panel">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:700;">Trvalé smazání hlášení</div>
+          <div class="hint">Smaže report i navázaná média (pokud existují).</div>
+        </div>
+        <button class="btn danger" type="submit" onclick="return confirm('Opravdu chcete smazat toto hlášení?');">Smazat report</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><strong>Fotodokumentace</strong></div>
+  <div class="card-body grid three">
+    {% for photo in photos %}
+      <a class="panel" href="/admin/media/{{ photo.id }}/original" target="_blank" style="text-decoration:none;color:inherit;">
+        <img src="/admin/media/{{ photo.id }}/thumb" alt="Foto {{ photo.id }}" style="display:block;width:100%;border-radius:8px;border:1px solid var(--line);" />
+        <div style="margin-top:8px;font-size:13px;">Foto #{{ photo.id }} · {{ photo.size_kb }} kB</div>
+      </a>
+    {% else %}
+      <div class="panel">K hlášení nejsou připojené žádné fotografie.</div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><strong>Historie změn</strong></div>
+  <div class="card-body">
+    <table>
+      <thead><tr><th>Akce</th><th>Kdy</th><th>Kdo</th><th>Poznámka</th></tr></thead>
+      <tbody>
+        {% for row in history %}
+        <tr>
+          <td>{{ row.action_label }}</td>
+          <td>{{ row.at_human }}</td>
+          <td>{{ 'Administrátor' if row.by_admin else (row.by_device_id or 'Systém') }}</td>
+          <td>{{ row.note or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">Historie je zatím prázdná.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}
