@@ -19,11 +19,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet" />
 
-    <link rel="stylesheet" href="/static/tailwind.css" />
-    <link rel="stylesheet" href="/static/app.css" />
-    <link rel="stylesheet" href="/static/dagmar.css" />
     <link rel="stylesheet" href="/static/hotel-brand.css" />
-    <link rel="stylesheet" href="/static/kajovo-ui.css" />
+    <link rel="stylesheet" href="/static/hotel-next.css" />
 
     <script defer src="/static/deploy-stamp.js"></script>
 
@@ -64,11 +61,23 @@
         const el = document.getElementById('hotelSplash');
         if (!el) return;
         const started = Date.now();
+        const splashMeta = el.querySelector('.hotel-splash__meta');
+        if (splashMeta) {
+          const hour = new Date().getHours();
+          const greeting = hour < 10 ? 'Dobré ráno' : (hour < 18 ? 'Dobrý den' : 'Dobrý večer');
+          splashMeta.textContent = `${greeting}, načítám personalizované prostředí…`;
+        }
+        function revealPage() {
+          document.querySelectorAll('.kajovo-surface, .card, .panel, .admin-panel, .tile').forEach((node, index) => {
+            node.style.animationDelay = `${Math.min(index * 45, 280)}ms`;
+          });
+        }
         function hide() {
           const minMs = 650;
           const left = Math.max(0, minMs - (Date.now() - started));
           setTimeout(() => {
             el.classList.add('hotel-splash--hide');
+            revealPage();
             setTimeout(() => el.remove(), 280);
           }, left);
         }

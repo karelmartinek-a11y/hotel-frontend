@@ -3,32 +3,25 @@
 {% block title %}KájovoHotel{% endblock %}
 
 {% block body_content %}
-<section class="mx-auto max-w-4xl px-4 py-12">
-  <div class="space-y-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-    <div class="flex items-center gap-4">
-      <img
-        src="{{ url_for('static', path='LOGO/assets/svg/logo-horizontal.svg') }}"
-        alt="KájovoHotel"
-        class="h-14 w-auto select-none drop-shadow-lg"
-        draggable="false"
-      />
+<section class="mx-auto max-w-5xl px-4 py-12">
+  <div class="kajovo-surface kajovo-card" style="display:grid;gap:18px;background:linear-gradient(165deg, rgba(255,255,255,0.97), rgba(247,247,247,0.98));">
+    <header style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <img src="{{ url_for('static', path='LOGO/assets/svg/logo-horizontal.svg') }}" alt="KájovoHotel" style="height:54px;width:auto;" draggable="false" />
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">KájovoHotel</h1>
-        <p class="mt-1 text-sm text-slate-600">
-          Jednotný vstup do webového portálu a administrace.
-        </p>
+        <h1 style="margin:0;font-size:30px;font-weight:900;letter-spacing:-0.02em;">KájovoHotel</h1>
+        <p class="kajovo-subtitle" style="margin:6px 0 0;">Profesionální vstup do portálu a administrace hotel.hcasc.cz</p>
       </div>
+    </header>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a class="kajovo-btn kajovo-btn--primary" href="/admin">Vstoupit do portálu</a>
+      <a class="kajovo-btn kajovo-btn--secondary" href="mailto:support@hcasc.cz">Kontaktovat podporu</a>
     </div>
 
-    <div class="grid gap-4 sm:flex sm:items-center">
-      <a class="inline-flex items-center justify-center rounded-xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500" href="/admin">Přihlásit se do portálu</a>
-      <a class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50" href="mailto:support@hcasc.cz">Podpora</a>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-4 text-xs text-slate-600">
-      <div><span class="font-medium text-slate-700">Doména:</span> hotel.hcasc.cz</div>
-      <div><span class="font-medium text-slate-700">Verze:</span> {{ app_version or '—' }}</div>
-    </div>
+    <footer style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--kajovo-muted);">
+      <span><strong>Doména:</strong> hotel.hcasc.cz</span>
+      <span><strong>Verze:</strong> {{ app_version or '—' }}</span>
+    </footer>
   </div>
 </section>
 {% endblock %}
