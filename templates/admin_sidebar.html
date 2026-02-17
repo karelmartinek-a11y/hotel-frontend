@@ -1,29 +1,29 @@
-<div class="kajovo-surface">
-  <div class="kajovo-card">
-    <div class="kajovo-sidebar-head">
-      <div class="kajovo-sidebar-brand">
-        <img src="/static/LOGO/assets/svg/logo-mark.svg" alt="KájovoHotel" class="kajovo-sidebar-brand__icon" />
-        <div class="kajovo-sidebar-brand__meta">
-          <div class="kajovo-sidebar-brand__title">KájovoHotel</div>
-          <div class="kajovo-sidebar-brand__subtitle">Admin</div>
-        </div>
-      </div>
-    </div>
+<div class="admin-menu-shell" role="presentation">
+  <section class="admin-menu" aria-label="Admin menu">
+    <header class="admin-menu__brand">
+      <img
+        src="/static/LOGO/assets/svg/logo-horizontal.svg"
+        alt="KájovoHotel"
+        class="admin-menu__logo"
+        loading="lazy"
+        decoding="async"
+      />
+      <p class="admin-menu__subtitle">Admin menu</p>
+    </header>
 
-    <nav class="kajovo-nav" aria-label="Admin navigace">
-      <a href="/admin" {% if active_nav=='dashboard' %}aria-current="page"{% endif %}>Dashboard</a>
-      <a href="/admin/reports/findings" {% if active_nav=='findings' %}aria-current="page"{% endif %}>Ztráty a nálezy</a>
-      <a href="/admin/reports/issues" {% if active_nav=='issues' %}aria-current="page"{% endif %}>Závady</a>
-      <a href="/admin/breakfast" {% if active_nav=='breakfast' %}aria-current="page"{% endif %}>Snídaně</a>
-      <a href="/admin/inventory/ingredients" {% if active_nav=='inventory' %}aria-current="page"{% endif %}>Sklad</a>
-      <a href="/admin/users" {% if active_nav=='users' %}aria-current="page"{% endif %}>Uživatelé</a>
-      <a href="/admin/settings" {% if active_nav=='settings' %}aria-current="page"{% endif %}>Nastavení</a>
-      <a href="/admin/profile" {% if active_nav=='profile' %}aria-current="page"{% endif %}>Profil</a>
+    <nav class="admin-menu__nav" aria-label="Hlavní administrace">
+      <a href="/admin/reports/findings" class="admin-menu__link" {% if active_nav=='findings' %}aria-current="page"{% endif %}>Ztráty a nálezy</a>
+      <a href="/admin/reports/issues" class="admin-menu__link" {% if active_nav=='issues' %}aria-current="page"{% endif %}>Závady</a>
+      <a href="/admin/breakfast" class="admin-menu__link" {% if active_nav=='breakfast' %}aria-current="page"{% endif %}>Snídaně</a>
+      <a href="/admin/inventory/ingredients" class="admin-menu__link" {% if active_nav=='inventory' %}aria-current="page"{% endif %}>Sklad</a>
+      <a href="/admin/users" class="admin-menu__link" {% if active_nav=='users' %}aria-current="page"{% endif %}>Uživatelé</a>
+      <a href="/admin/settings" class="admin-menu__link" {% if active_nav=='settings' %}aria-current="page"{% endif %}>Nastavení</a>
+      <a href="/admin/profile" class="admin-menu__link" {% if active_nav=='profile' %}aria-current="page"{% endif %}>Profil</a>
     </nav>
 
-    <form method="post" action="/admin/logout" class="m-0" style="padding: 10px;">
+    <form method="post" action="/admin/logout" class="admin-menu__logout">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-      <button type="submit" class="kajovo-btn kajovo-btn--secondary" style="width:100%;">Odhlásit</button>
+      <button type="submit" class="kajovo-btn kajovo-btn--secondary admin-menu__logout-button">Odhlásit</button>
     </form>
-  </div>
+  </section>
 </div>
