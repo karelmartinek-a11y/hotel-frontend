@@ -1,27 +1,22 @@
 {% extends "base.html" %}
-
-{% block title %}KájovoHotel{% endblock %}
-
+{% block title %}KájovoHotel · vstup{% endblock %}
+{% block hero_title %}Hotelový operační systém{% endblock %}
+{% block hero_subtitle %}Jednotný vstupní bod pro administraci, interní portál a provozní reporty.{% endblock %}
 {% block body_content %}
-<section class="mx-auto max-w-5xl px-4 py-12">
-  <div class="kajovo-surface kajovo-card" style="display:grid;gap:18px;background:linear-gradient(165deg, rgba(255,255,255,0.97), rgba(247,247,247,0.98));">
-    <header style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-      <img src="{{ url_for('static', path='LOGO/assets/svg/logo-horizontal.svg') }}" alt="KájovoHotel" style="height:54px;width:auto;" draggable="false" />
-      <div>
-        <h1 style="margin:0;font-size:30px;font-weight:900;letter-spacing:-0.02em;">KájovoHotel</h1>
-        <p class="kajovo-subtitle" style="margin:6px 0 0;">Profesionální vstup do portálu a administrace hotel.hcasc.cz</p>
-      </div>
-    </header>
-
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <a class="kajovo-btn kajovo-btn--primary" href="/admin">Vstoupit do portálu</a>
-      <a class="kajovo-btn kajovo-btn--secondary" href="mailto:support@hcasc.cz">Kontaktovat podporu</a>
+<section class="grid two">
+  <article class="card">
+    <div class="card-head"><strong>Administrace</strong></div>
+    <div class="card-body stack">
+      <p class="hint" style="margin:0;">Rozšířené řízení provozu, správa uživatelů, audit hlášení, konfigurace SMTP a importů.</p>
+      <a class="btn primary" href="/admin">Vstoupit do administrace</a>
     </div>
-
-    <footer style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--kajovo-muted);">
-      <span><strong>Doména:</strong> hotel.hcasc.cz</span>
-      <span><strong>Verze:</strong> {{ app_version or '—' }}</span>
-    </footer>
-  </div>
+  </article>
+  <article class="card">
+    <div class="card-head"><strong>Portál zaměstnanců</strong></div>
+    <div class="card-body stack">
+      <p class="hint" style="margin:0;">Nahlášení nálezů a závad z provozu v reálném čase.</p>
+      <a class="btn secondary" href="/login">Přihlásit se do portálu</a>
+    </div>
+  </article>
 </section>
 {% endblock %}
